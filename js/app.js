@@ -4,8 +4,8 @@ var cols = 5;
 var tile_width = 101;
 // note: not actual height of the img, just the square 'above ground' part
 var tile_height = 83;
-var player_adjustment = 10;
-var enemy_adjustment = 30;
+// actual height of the tile png image
+var full_img_tile_height = 171;
 
 /////////////////////////
 //     ENTITY CLASS    //
@@ -101,7 +101,6 @@ var Player = function(start_position) {
     }
   };
   Entity.call(this, settings);
-  console.log(settings);
 
 };
 // delegate player prototype to entity prototype
@@ -135,6 +134,19 @@ Player.prototype.handleInput = function(key) {
 // Place all enemy objects in an array called allEnemies
 // Place the player object in a variable called player
 
+// pixel position adjustments for centering the sprite on the tile
+var player_center_x_adjustment = 50;
+var enemy_center_y_adjustment = 30;
+
+// figure out number of rows that need enemies spawned in
+// subtract 3 for the water row and the 2 grass rows
+var enemy_rows = rows - 3;
+var enemy_row_y_positions = [];
+for (var i=0; i <= enemy_rows.length; i+=1) {
+  // multiply i+1 (+1 accounts for the first 'goal' row we skip over)
+  //
+  enemy_row_y_positions.push((i+1)*tile_width);
+}
 // array to store all enemy instances
 var allEnemies = [];
 
@@ -142,15 +154,16 @@ var allEnemies = [];
 // road tile rows
 
 // spawn enemies onto the map
-allEnemies.push(new Enemy({x: 1 * tile_width, y: 1 * tile_height-enemy_adjustment}, 1));
+allEnemies.push(new Enemy({x: 1 * tile_width, y: 1 * tile_height - enemy_center_y_adjustment}, 1));
 
 // instantiate the player character
 var player = new Player({
-  // start the player in the middle tile
-  x: (tile_width * cols) / 2 - 50,
+  // start the player in the middle tile by finding horizontal center pixel value
+  // adjust sprite to center it since it aligns position based on the edge of the img
+  x: (tile_width * cols) / 2 - player_center_x_adjustment,
   // start the player at the bottom of the rows, adjust position to center sprite
   // feet on the tile 'ground', adjustment is just to get a perfect centering
-  y: ((tile_height * rows) - (tile_height*(2/3)) - 60)
+  y: (tile_height * rows) - (full_img_tile_height * 2/3)
 });
 
 // This listens for key presses and sends the keys to your
