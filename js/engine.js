@@ -25,8 +25,9 @@ var Engine = (function(global) {
         ctx = canvas.getContext('2d'),
         lastTime;
 
-    canvas.width = 505;
-    canvas.height = 606;
+    canvas.width = cols * tile_width;
+    // multiply by the width to because tile height is only the 'above ground' art
+    canvas.height = rows * tile_width;
     doc.body.appendChild(canvas);
 
     /* This function serves as the kickoff point for the game loop itself
@@ -110,14 +111,15 @@ var Engine = (function(global) {
         var rowImages = [
                 'images/water-block.png',   // Top row is water
                 'images/stone-block.png',   // Row 1 of 3 of stone
-                'images/stone-block.png',   // Row 2 of 3 of stone
-                'images/stone-block.png',   // Row 3 of 3 of stone
+                // 'images/stone-block.png',   // Row 2 of 3 of stone
+                // 'images/stone-block.png',   // Row 3 of 3 of stone
                 'images/grass-block.png',   // Row 1 of 2 of grass
-                'images/grass-block.png'    // Row 2 of 2 of grass
+                // 'images/grass-block.png'    // Row 2 of 2 of grass
             ],
-            numRows = 6,
-            numCols = 5,
+            numRows = rows,
+            numCols = cols,
             row, col;
+        var safe_row = rows-2;
 
         /* Loop through the number of rows and columns we've defined above
          * and, using the rowImages array, draw the correct image for that
@@ -132,11 +134,26 @@ var Engine = (function(global) {
                  * so that we get the benefits of caching these images, since
                  * we're using them over and over.
                  */
-                ctx.drawImage(Resources.get(rowImages[row]), col * 101, row * 83);
+                 // draw the appropriate background tile by checking what row we're on
+                 if (row === 0) {
+                   // draw the water at the top
+                   ctx.drawImage(Resources.get(rowImages[0]), col * tile_width, row * tile_height);
+                 } else if (row < safe_row) {
+                   // road in the middle
+                   ctx.drawImage(Resources.get(rowImages[1]), col * tile_width, row * tile_height);
+                 } else {
+                   // grass on the bottom
+                   ctx.drawImage(Resources.get(rowImages[2]), col * tile_width, row * tile_height);
+                 }
+                // ctx.drawImage(Resources.get(rowImages[row]), col * tile_width, row * tile_height);
             }
         }
+        // keep the top clear with a color
+        ctx.fillStyle = '#008286';
+        ctx.fillRect(0,0, canvas.width, 50);
 
         renderEntities();
+
     }
 
     /* This function is called by the render function and is called on each game
