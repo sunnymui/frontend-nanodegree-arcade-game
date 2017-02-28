@@ -197,4 +197,7 @@ var Engine = (function(global) {
      * from within their app.js files.
      */
     global.ctx = ctx;
+    // make canvas width and height globally accessible
+    global.canvas_width = canvas.width;
+    global.canvas_height = canvas.height;
 })(this);

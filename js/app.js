@@ -1,11 +1,44 @@
-// general game setting state data, sizes in pixels
-var rows = 6;
+// general game state setting data, sizes in pixels
+var rows = 7;
 var cols = 5;
 var tile_width = 101;
 // note: not actual height of the img, just the square 'above ground' part
 var tile_height = 83;
 // actual height of the tile png image
 var full_img_tile_height = 171;
+// gameplay field bounds for keeping the player from leaving the canvas
+// adjustment factor of 114 to keep sprite onscreen because who the hell knows
+var play_boundary_bottom = rows * tile_height - 114;
+// below 0 to adjust for our player sprite img having extra empty space on top
+var play_boundary_top = -30;
+// start boundary at 1 since our centered sprite cant really be perfectly centered
+// on 101px wide tile so it has 1 extra pixel on the side
+var play_boundary_left = 1;
+// substract the width of a tile since sprite is centered on tiles, boundary
+// is actually one less tile than the total width to account for 2 halves of
+// tiles on the right and left side being effectively out of play
+var play_boundary_right = cols * tile_width - tile_width;
+
+
+// Utility functions
+
+function clamp(number, min, max) {
+/*
+Check if a given number falls within the range of the min and max.
+If so, return it, if not return the max or min.
+Args: number to check, the minimum value, the maximum value allowed
+Return: number falling within the specified range, with numbers below the min
+        converted to the min and greater than max converted to the max.
+*/
+    return Math.min(Math.max(number,min), max);
+}
+
+/*
+check if players move will move it out of the canvas bounds.
+
+clamp(0,canvas.width)
+should return the new position if legal otherwise keep the same position
+*/
 
 /////////////////////////
 //     ENTITY CLASS    //
@@ -112,20 +145,34 @@ Player.prototype.update = function(dt) {
 
 };
 
+var distance = 0;
+function animate() {
+  var request_id = requestAnimationFrame(animate);
+
+  if (distance < tile_width) {
+      player.x += tile_width/3;
+      distance += tile_width/3;
+  } else {
+    cancelAnimationFrame(request_id);
+    distance = 0;
+  }
+
+}
+
 // listen for/let keys control player movement on the screen
 Player.prototype.handleInput = function(key) {
   switch(key) {
     case 'left':
-      this.x -= tile_width;
+      this.x = clamp(this.x - tile_width, play_boundary_left, play_boundary_right);
       break;
     case 'up':
-      this.y -= tile_height;
+      this.y = clamp(this.y - tile_height, play_boundary_top, play_boundary_bottom);
       break;
     case 'right':
-      this.x += tile_width;
+      this.x = clamp(this.x + tile_width, play_boundary_left, play_boundary_right);
       break;
     case 'down':
-      this.y += tile_height;
+      this.y = clamp(this.y + tile_height, play_boundary_top, play_boundary_bottom);
       break;
   }
 };
@@ -175,6 +222,8 @@ document.addEventListener('keyup', function(e) {
         39: 'right',
         40: 'down'
     };
+    var key = allowedKeys[e.keyCode];
 
-    player.handleInput(allowedKeys[e.keyCode]);
+    player.handleInput(key);
+
 });
