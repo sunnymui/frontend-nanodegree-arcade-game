@@ -7,7 +7,7 @@ var tile_height = 83;
 // actual height of the tile png image
 var full_img_tile_height = 171;
 // gameplay field bounds for keeping the player from leaving the canvas
-// adjustment factor of 114 to keep sprite onscreen because who the hell knows
+// adjustment factor of 114 to keep player sprite from going out of bounds
 var play_boundary_bottom = rows * tile_height - 114;
 // below 0 to adjust for our player sprite img having extra empty space on top
 var play_boundary_top = -30;
@@ -133,7 +133,11 @@ var Player = function(start_position) {
       height: 50
     }
   };
+  // create the player class by calling the entity superclass
   Entity.call(this, settings);
+
+  // initialize a move distance tracker for animating player movement
+  this.distance_moved = 0;
 
 };
 // delegate player prototype to entity prototype
@@ -145,18 +149,123 @@ Player.prototype.update = function(dt) {
 
 };
 
-var distance = 0;
-function animate() {
-  var request_id = requestAnimationFrame(animate);
+// change all these player movement functions to be part of the player prototype
+var distance_moved = 0;
+function animate_player() {
+  // check what kind of direction of movement was made
+  var horizontal_move = key_pressed == 'left' || key_pressed == 'right';
+  var vertical_move = key_pressed == 'up' || key_pressed == 'down';
 
-  if (distance < tile_width) {
-      player.x += tile_width/3;
-      distance += tile_width/3;
-  } else {
-    cancelAnimationFrame(request_id);
-    distance = 0;
+  // check if the animation has completed moving a tile and stop it if so
+  // check keypress type for appropriate distance/tile comparison
+  if (horizontal_move) {
+    // check if we've travelled 1 tile's width
+    if (distance_moved >= tile_width) {
+      // reset the distance
+      distance_moved = 0;
+      // exit animation function
+      return;
+    }
+  } else if (vertical_move) {
+    // check if we've travelled 1 tile's height
+    if (distance_moved >= tile_height) {
+      // reset the distance
+      distance_moved = 0;
+      // exit animation function
+      return;
+    }
   }
 
+  // run recursive animation function and store id for canceling animation
+  var request_id = requestAnimationFrame(animate_player);
+  // draw a frame of the animation and pass in the request id
+  // player_animate_a_frame();
+  player_move(key_pressed);
+
+}
+
+function player_move(direction) {
+  /*
+  Moves the player sprite a set distance based on the direction.
+  */
+  var position;
+  var tile_distance;
+  var move_amount_per_frame = 1/3;
+  var speed;
+
+  // set the movement
+  switch (direction) {
+    case 'left':
+      // make negative since we're subtracting from x position to move left
+      // using math.abs in case for some strange reason it's a negative number
+      tile_distance = -Math.abs(tile_width);
+      break;
+    case 'right':
+      tile_distance = tile_width;
+      break;
+    case 'up':
+      // make negative because moving up in y position means subtracting pixels
+      tile_distance = -Math.abs(tile_height);
+      break;
+    case 'down':
+      tile_distance = tile_height;
+      break;
+    }
+
+    speed = tile_distance*move_amount_per_frame;
+
+    // increment the appropriate player x or y position (x:horizontal, y:vertical)
+    if (direction == 'left' || direction == 'right') {
+      player.x += speed;
+    } else {
+      player.y += speed;
+    }
+
+    // increment distance moved so far tracker with the absolute value of the speed
+    distance_moved += Math.abs(speed);
+
+}
+
+
+// testing the value of this
+Player.prototype.test = function() {
+  console.log(this);
+  this.test2();
+};
+
+Player.prototype.test2 = function() {
+  console.log(this);
+};
+
+
+function player_animate_a_frame() {
+
+  switch(key_pressed) {
+    case 'left':
+      if (distance_moved < tile_width) {
+        player.x -= tile_width/3;
+        distance_moved += tile_width/3;
+      }
+      break;
+    case 'up':
+      if (distance_moved < tile_height) {
+        player.y -= tile_height/3;
+        distance_moved += tile_height/3;
+      }
+      break;
+    case 'right':
+      if (distance_moved < tile_width) {
+        player.x += tile_width/3;
+        distance_moved += tile_width/3;
+      }
+      break;
+    case 'down':
+      if (distance_moved < tile_height) {
+        player.y += tile_height/3;
+        distance_moved += tile_height/3;
+      }
+      break;
+  }
 }
 
 // listen for/let keys control player movement on the screen
@@ -213,8 +322,11 @@ var player = new Player({
   y: (tile_height * rows) - (full_img_tile_height * 2/3)
 });
 
+player.test();
+
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
+var key_pressed;
 document.addEventListener('keyup', function(e) {
     var allowedKeys = {
         37: 'left',
@@ -222,8 +334,14 @@ document.addEventListener('keyup', function(e) {
         39: 'right',
         40: 'down'
     };
-    var key = allowedKeys[e.keyCode];
+    key_pressed = allowedKeys[e.keyCode];
+    console.log(key_pressed);
 
-    player.handleInput(key);
+    //player.handleInput(key_pressed);
+    // only run the animation if an arrow key was pressed
+    if (key_pressed) {
+      requestAnimationFrame(animate_player);
+    }
+
 
 });

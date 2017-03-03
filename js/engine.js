@@ -14,6 +14,8 @@
  * a little simpler to work with.
  */
 
+// essentially creates a namespace for your game via the self executing function
+// since everything else is defined within it
 var Engine = (function(global) {
     /* Predefine the variables we'll be using within this scope,
      * create the canvas element, grab the 2D context for that canvas
