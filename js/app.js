@@ -14,19 +14,18 @@ var canvas_width = cols * tile_width;
 var canvas_height = rows * tile_width;
 // pixel height for the bottom tile's little extra undeground part showing
 var bottom_underground = 31;
-// playing field boundaries, keep the player from leaving the canvas
-// adjustment factor of 114 to keep player sprite from going out of bounds
-// var play_boundary_bottom = rows * tile_height - 114;
-// // below 0 to adjust for our player sprite img having extra empty space on top
-// var play_boundary_top = -30;
-// // start boundary at 1 since our centered sprite cant really be perfectly centered
-// // on 101px wide tile so it has 1 extra pixel on the side
-// var play_boundary_left = 1;
-// // substract the width of a tile since sprite is centered on tiles, boundary
-// // is actually one less tile than the total width to account for 2 halves of
-// // tiles on the right and left side being effectively out of play
-// var play_boundary_right = cols * tile_width - tile_width;
 
+// playing field boundaries keep the player from leaving the canvas
+// beginning of canvas x coordinate system, it's 1 since tile width is 101 so
+// can't move to exactly 0 with the sprite
+var player_boundary_left = 1;
+// cols (minus 1 since we only move to the middle of a column) times tile width
+var player_boundary_right = tile_width * (cols-1);
+// below 0 to adjust for our player sprite img having extra empty space on top
+var player_boundary_top = -31;
+// rows - 1 (since we start in middle of a tile) times tile height, adjust for
+// the little undeground part on the bottom row
+var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
 
 // Utility functions
 
@@ -188,12 +187,13 @@ Return: none
   // check keypress type for appropriate distance/tile comparison
   if (horizontal_move) {
 
+    // stop the movement animation when moving offscreen or move completed
     if (// check if we've travelled 1 tile's width
         this.distance_moved >= tile_width ||
         // check if we're moving off screen on the left
-        key_pressed == 'left' && Math.floor(this.x) <= 0 ||
+        key_pressed == 'left' && this.x <= player_boundary_left ||
         // check if we're moving offscreen on the right
-        key_pressed == 'right' && this.x >= tile_width * (cols-1)) {
+        key_pressed == 'right' && this.x >= player_boundary_right) {
           // reset the distance
           this.distance_moved = 0;
           // exit animation function
@@ -202,12 +202,13 @@ Return: none
 
   } else if (vertical_move) {
 
+    // stop the movement animation when moving offscreen or move completed
     if (// check if we've travelled 1 tile's height
         this.distance_moved >= tile_height ||
         // check if we're moving off screen at the top
-        key_pressed == 'up' && Math.floor(this.y) <= -31 ||
+        key_pressed == 'up' && this.y <= player_boundary_top ||
         // check if we're moving off screen at the bottom
-        key_pressed == 'down' && this.y >= tile_height * (rows-1) - bottom_underground) {
+        key_pressed == 'down' && this.y >= player_boundary_bottom) {
           // reset the distance
           this.distance_moved = 0;
           // exit animation function
