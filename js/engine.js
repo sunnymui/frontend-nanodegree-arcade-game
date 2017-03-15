@@ -97,7 +97,7 @@ var Engine = (function(global) {
         allEnemies.forEach(function(enemy) {
             enemy.update(dt);
         });
-        player.update();
+        player.update(dt);
     }
 
     /* This function initially draws the "game level", it will then call
@@ -147,7 +147,6 @@ var Engine = (function(global) {
                    // grass on the bottom
                    ctx.drawImage(Resources.get(rowImages[2]), col * tile_width, row * tile_height);
                  }
-                // ctx.drawImage(Resources.get(rowImages[row]), col * tile_width, row * tile_height);
             }
         }
         // keep the top clear with a color
@@ -199,7 +198,6 @@ var Engine = (function(global) {
      * from within their app.js files.
      */
     global.ctx = ctx;
-    // make canvas width and height globally accessible
-    global.canvas_width = canvas.width;
-    global.canvas_height = canvas.height;
+    // // make canvas width and height globally accessible
+
 })(this);

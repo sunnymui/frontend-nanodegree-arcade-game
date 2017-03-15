@@ -1,23 +1,31 @@
 // general game state setting data, sizes in pixels
+
+// playing field and tile sizes
 var rows = 7;
-var cols = 5;
+var cols = 7;
 var tile_width = 101;
 // note: not actual height of the img, just the square 'above ground' part
 var tile_height = 83;
 // actual height of the tile png image
 var full_img_tile_height = 171;
-// gameplay field bounds for keeping the player from leaving the canvas
+// playing field total width
+var canvas_width = cols * tile_width;
+// playing field total height (use width because it's only the 'above ground' art)
+var canvas_height = rows * tile_width;
+// pixel height for the bottom tile's little extra undeground part showing
+var bottom_underground = 31;
+// playing field boundaries, keep the player from leaving the canvas
 // adjustment factor of 114 to keep player sprite from going out of bounds
-var play_boundary_bottom = rows * tile_height - 114;
-// below 0 to adjust for our player sprite img having extra empty space on top
-var play_boundary_top = -30;
-// start boundary at 1 since our centered sprite cant really be perfectly centered
-// on 101px wide tile so it has 1 extra pixel on the side
-var play_boundary_left = 1;
-// substract the width of a tile since sprite is centered on tiles, boundary
-// is actually one less tile than the total width to account for 2 halves of
-// tiles on the right and left side being effectively out of play
-var play_boundary_right = cols * tile_width - tile_width;
+// var play_boundary_bottom = rows * tile_height - 114;
+// // below 0 to adjust for our player sprite img having extra empty space on top
+// var play_boundary_top = -30;
+// // start boundary at 1 since our centered sprite cant really be perfectly centered
+// // on 101px wide tile so it has 1 extra pixel on the side
+// var play_boundary_left = 1;
+// // substract the width of a tile since sprite is centered on tiles, boundary
+// // is actually one less tile than the total width to account for 2 halves of
+// // tiles on the right and left side being effectively out of play
+// var play_boundary_right = cols * tile_width - tile_width;
 
 
 // Utility functions
@@ -33,12 +41,16 @@ Return: number falling within the specified range, with numbers below the min
     return Math.min(Math.max(number,min), max);
 }
 
+function random_num_in_range(min, max) {
 /*
-check if players move will move it out of the canvas bounds.
-
-clamp(0,canvas.width)
-should return the new position if legal otherwise keep the same position
+Generates a random number that falls within the given range in the arguments.
+Range is inclusive of the min, exclusive of the max since Math.random is exclusive
+of the max of 1.
+Args: miniumum number the random number can be, max number that can be generated
+Return: a random number (floating point) in the range
 */
+  return Math.random() * (max-min) + min;
+}
 
 /////////////////////////
 //     ENTITY CLASS    //
@@ -95,6 +107,7 @@ Return: Constructed Enemy instance
         height: 50
       }
     };
+
     // delegate settings to the Entity superclass
     Entity.call(this, settings);
 };
@@ -111,6 +124,15 @@ Enemy.prototype.update = function(dt) {
     // all computers.
 
     // animate these moving across the screen, unique to enemy
+    // increment the horizontal position of the sprite, use delta time to keep
+    // movement consistent across devices
+    this.x += this.speed*dt;
+    // check if sprite moved all the way across screen and out of visible canvas
+    if (this.x > canvas_width+50) {
+      // reset position back to the beginning but start off screen
+      this.x = -100;
+    }
+
 };
 
 // Now write your own player class
@@ -133,7 +155,7 @@ var Player = function(start_position) {
       height: 50
     }
   };
-  // create the player class by calling the entity superclass
+  // create player class by calling entity class, resetting that this to player this
   Entity.call(this, settings);
 
   // initialize a move distance tracker for animating player movement
@@ -142,58 +164,85 @@ var Player = function(start_position) {
 };
 // delegate player prototype to entity prototype
 Player.prototype = Object.create(Entity.prototype);
-// set player constructor prop to correct function instead of Entity
+// set player constructor property to correct function instead of Entity
 Player.prototype.constructor = Player;
 
 Player.prototype.update = function(dt) {
 
 };
 
-// change all these player movement functions to be part of the player prototype
-var distance_moved = 0;
-function animate_player() {
-  // check what kind of direction of movement was made
+// function for the request animation frame player animation loop
+Player.prototype.animate_player = function() {
+/*
+Runs animation loop for player movement and checks to see if a movement has
+completed before ending the animation.
+Args: na, but relys on key pressed to be defined in outer scope
+Return: none
+*/
+
+  // check what kind of movement was made (in the x plane or y plane)
   var horizontal_move = key_pressed == 'left' || key_pressed == 'right';
   var vertical_move = key_pressed == 'up' || key_pressed == 'down';
 
   // check if the animation has completed moving a tile and stop it if so
   // check keypress type for appropriate distance/tile comparison
   if (horizontal_move) {
-    // check if we've travelled 1 tile's width
-    if (distance_moved >= tile_width) {
-      // reset the distance
-      distance_moved = 0;
-      // exit animation function
-      return;
+
+    if (// check if we've travelled 1 tile's width
+        this.distance_moved >= tile_width ||
+        // check if we're moving off screen on the left
+        key_pressed == 'left' && Math.floor(this.x) <= 0 ||
+        // check if we're moving offscreen on the right
+        key_pressed == 'right' && this.x >= tile_width * (cols-1)) {
+          // reset the distance
+          this.distance_moved = 0;
+          // exit animation function
+          return;
     }
+
   } else if (vertical_move) {
-    // check if we've travelled 1 tile's height
-    if (distance_moved >= tile_height) {
-      // reset the distance
-      distance_moved = 0;
-      // exit animation function
-      return;
+
+    if (// check if we've travelled 1 tile's height
+        this.distance_moved >= tile_height ||
+        // check if we're moving off screen at the top
+        key_pressed == 'up' && Math.floor(this.y) <= -31 ||
+        // check if we're moving off screen at the bottom
+        key_pressed == 'down' && this.y >= tile_height * (rows-1) - bottom_underground) {
+          // reset the distance
+          this.distance_moved = 0;
+          // exit animation function
+          return;
     }
+
   }
 
-  // run recursive animation function and store id for canceling animation
-  var request_id = requestAnimationFrame(animate_player);
-  // draw a frame of the animation and pass in the request id
-  // player_animate_a_frame();
-  player_move(key_pressed);
+  // store reference to this as this Player instance in the outer scope
+  // since request animation frame changes has window as the context
+  var self = this;
+  // run recursive animation loop and store id for canceling animation if needed
+  var request_id = requestAnimationFrame(function() {
+    // run animate player with the correct context of the player instance
+    self.animate_player();
+  });
+  // draw a frame of the animation
+  this.player_move(key_pressed);
 
-}
+};
 
-function player_move(direction) {
-  /*
-  Moves the player sprite a set distance based on the direction.
-  */
-  var position;
+Player.prototype.player_move = function(direction) {
+/*
+Moves the player sprite a set distance for one frame of a requestanimationframe
+loop, based on the direction from the key press.
+Args: the direction of movement (string) - expects an arrow key direction value
+      string like 'left', 'right', 'up', 'down'
+Return: n/a but increments the player postion x/y in the outer scope
+*/
+
   var tile_distance;
-  var move_amount_per_frame = 1/3;
-  var speed;
+  var speed_per_frame = 1/3;
+  var speed_in_pixels;
 
-  // set the movement
+  // set the distance that corresponds to 1 complete move
   switch (direction) {
     case 'left':
       // make negative since we're subtracting from x position to move left
@@ -212,121 +261,130 @@ function player_move(direction) {
       break;
     }
 
-    speed = tile_distance*move_amount_per_frame;
+    // convert the unitless percentage speed into a speed in pixels
+    speed_in_pixels = tile_distance * speed_per_frame;
 
     // increment the appropriate player x or y position (x:horizontal, y:vertical)
     if (direction == 'left' || direction == 'right') {
-      player.x += speed;
+      this.x += speed_in_pixels;
     } else {
-      player.y += speed;
+      this.y += speed_in_pixels;
     }
 
     // increment distance moved so far tracker with the absolute value of the speed
-    distance_moved += Math.abs(speed);
+    this.distance_moved += Math.abs(speed_in_pixels);
 
-}
-
-
-// testing the value of this
-Player.prototype.test = function() {
-  console.log(this);
-  this.test2();
 };
 
-Player.prototype.test2 = function() {
-  console.log(this);
-};
-
-
-function player_animate_a_frame() {
-
-  switch(key_pressed) {
-    case 'left':
-      if (distance_moved < tile_width) {
-        player.x -= tile_width/3;
-        distance_moved += tile_width/3;
-      }
-      break;
-    case 'up':
-      if (distance_moved < tile_height) {
-        player.y -= tile_height/3;
-        distance_moved += tile_height/3;
-      }
-      break;
-    case 'right':
-      if (distance_moved < tile_width) {
-        player.x += tile_width/3;
-        distance_moved += tile_width/3;
-      }
-      break;
-    case 'down':
-      if (distance_moved < tile_height) {
-        player.y += tile_height/3;
-        distance_moved += tile_height/3;
-      }
-      break;
-  }
-}
-
-// listen for/let keys control player movement on the screen
-Player.prototype.handleInput = function(key) {
-  switch(key) {
-    case 'left':
-      this.x = clamp(this.x - tile_width, play_boundary_left, play_boundary_right);
-      break;
-    case 'up':
-      this.y = clamp(this.y - tile_height, play_boundary_top, play_boundary_bottom);
-      break;
-    case 'right':
-      this.x = clamp(this.x + tile_width, play_boundary_left, play_boundary_right);
-      break;
-    case 'down':
-      this.y = clamp(this.y + tile_height, play_boundary_top, play_boundary_bottom);
-      break;
-  }
-};
+//////////////////////////////////
+//     INSTANTIATE OBJECTS      //
+//////////////////////////////////
 
 // Now instantiate your objects.
 // Place all enemy objects in an array called allEnemies
 // Place the player object in a variable called player
 
+// counters for incrementing loops
+var i;
+var j;
+
+// array to store all enemy instances
+var allEnemies = [];
 // pixel position adjustments for centering the sprite on the tile
 var player_center_x_adjustment = 50;
 var enemy_center_y_adjustment = 30;
-
-// figure out number of rows that need enemies spawned in
+// figure out number of rows to spawn enemies in
 // subtract 3 for the water row and the 2 grass rows
 var enemy_rows = rows - 3;
-var enemy_row_y_positions = [];
-for (var i=0; i <= enemy_rows.length; i+=1) {
-  // multiply i+1 (+1 accounts for the first 'goal' row we skip over)
-  //
-  enemy_row_y_positions.push((i+1)*tile_width);
+// y position value of the middle of the goal row, where player would be
+var goal_row = -31;
+
+// init var to get the last rows which will have higher difficulty enemies
+var last_rows;
+// init var for number of enemies to generate in current row
+var enemies_in_current_row;
+// init var for the current enemy horizontal and vertical position
+var current_enemy_x_pos;
+var current_enemy_y_pos;
+// init var for enemy speed
+var current_enemy_speed;
+// init var for pixel margin between each enemy sprite in the row
+var space_between_enemies;
+// scale max allowed enemies with the number of columns
+var hard_max_enemies = Math.ceil(cols/2);
+// scale max enemies for easy rows also
+var easy_max_enemies = Math.ceil(cols/3);
+
+/////////////////////////
+// ENEMY INSTANTIATION //
+/////////////////////////
+
+// enemy spawning loop to fill the allEnemies array
+for (i=0; i < enemy_rows; i+=1) {
+
+  // find the last few rows because they will have more enemies
+  // ceiling rounding to make more high difficulty rows
+  last_rows = Math.ceil(enemy_rows/3);
+
+  // check if the current row is one of the last for increased difficulty
+  if (i < last_rows) {
+    // set more enemies in current row if one of the last rows
+    enemies_in_current_row = random_num_in_range(1, hard_max_enemies);
+    // higher range for the enemy speed
+    current_enemy_speed = Math.floor(random_num_in_range(150, 200));
+  } else {
+    // less possible enemies for regular rows
+    enemies_in_current_row = random_num_in_range(1, easy_max_enemies);
+    // standard enemy speed 50-180 px per sec
+    current_enemy_speed = Math.floor(random_num_in_range(50, 180));
+  }
+
+  // calculate the enemy y position by getting the current row's pixel height
+  // then subtracting pixels to center the enemy vertically in the row
+  current_enemy_y_pos = (i+1) * tile_height - enemy_center_y_adjustment;
+  // calculate evenly distributed pixel space between each enemy sprite
+  space_between_enemies = cols * tile_width / enemies_in_current_row;
+
+  // loop through number of enemies in the current row and set x,y positions for each
+  for (j=0; j < enemies_in_current_row; j+=1) {
+    // enemy x position determined by number of enemies spaced equally on the row
+    // round it down to make a nice round integer for the position value
+    current_enemy_x_pos = Math.floor(j * space_between_enemies);
+
+    // construct the enemies for the current row and push to the allEnemies array
+    allEnemies.push(
+      new Enemy({x: current_enemy_x_pos, y: current_enemy_y_pos}, current_enemy_speed)
+    );
+  }
 }
-// array to store all enemy instances
-var allEnemies = [];
 
-// loop and create bunch of enemies with varying positions on the different
-// road tile rows
+/////////////////////////
+// PLAYER INSTANTATION //
+/////////////////////////
 
-// spawn enemies onto the map
-allEnemies.push(new Enemy({x: 1 * tile_width, y: 1 * tile_height - enemy_center_y_adjustment}, 1));
+// divide number of columns by 2, then round to an even number to get the col
+// of the middle tile, then multiply by the tile width to get actual pixel value
+var center_tile = Math.floor(cols/2) * tile_width;
 
-// instantiate the player character
-var player = new Player({
-  // start the player in the middle tile by finding horizontal center pixel value
-  // adjust sprite to center it since it aligns position based on the edge of the img
-  x: (tile_width * cols) / 2 - player_center_x_adjustment,
+// settings for the starting position of the player sprite
+var player_start_position = {
+  x: center_tile,
   // start the player at the bottom of the rows, adjust position to center sprite
   // feet on the tile 'ground', adjustment is just to get a perfect centering
   y: (tile_height * rows) - (full_img_tile_height * 2/3)
-});
+};
 
-player.test();
+// instantiate the player character
+var player = new Player(player_start_position);
 
+//////////////
+// CONTROLS //
+//////////////
+
+// initialize a var to store the allowed key that was pressed by user
+var key_pressed;
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
-var key_pressed;
 document.addEventListener('keyup', function(e) {
     var allowedKeys = {
         37: 'left',
@@ -334,14 +392,19 @@ document.addEventListener('keyup', function(e) {
         39: 'right',
         40: 'down'
     };
-    key_pressed = allowedKeys[e.keyCode];
-    console.log(key_pressed);
 
-    //player.handleInput(key_pressed);
-    // only run the animation if an arrow key was pressed
-    if (key_pressed) {
-      requestAnimationFrame(animate_player);
+    // only run the animation if an allowed key was pressed
+    if (e.keyCode in allowedKeys) {
+      // set key_pressed to inputted keycode's corresponding human readable value
+      key_pressed = allowedKeys[e.keyCode];
+
+      // call the player movement animation which handles player movement
+      // checks key_pressed value from this outer scope for movement direction
+      requestAnimationFrame(function() {
+        // passing this in anonymous function lets the correct context
+        // of player be used instead of window
+        player.animate_player();
+      });
     }
-
 
 });
