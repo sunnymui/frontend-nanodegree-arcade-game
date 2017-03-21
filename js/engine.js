@@ -26,6 +26,8 @@ var Engine = (function(global) {
         canvas = doc.createElement('canvas'),
         ctx = canvas.getContext('2d'),
         lastTime;
+    // var to store the rendered background img
+    var background;
 
     canvas.width = cols * tile_width;
     // multiply by the width to because tile height is only the 'above ground' art
@@ -69,6 +71,8 @@ var Engine = (function(global) {
     function init() {
         reset();
         lastTime = Date.now();
+        // render background once to cache in the background var since it stays the same
+        renderBackground();
         main();
     }
 
@@ -100,59 +104,62 @@ var Engine = (function(global) {
         player.update(dt);
     }
 
+    function renderBackground() {
+      /* This array holds the relative URL to the image used
+       * for that particular row of the game level.
+       */
+      var rowImages = [
+              'images/water-block.png',   // Top goal row is water
+              'images/stone-block.png',   // Enemy zone rows are stone
+              'images/grass-block.png',   // Player start zone rows are grass
+          ],
+          row, col;
+      var safe_row = rows-2;
+
+      /* Loop through the number of rows and columns we've defined above
+       * and, using the rowImages array, draw the correct image for that
+       * portion of the "grid"
+       */
+      for (row = 0; row < rows; row+=1) {
+          for (col = 0; col < cols; col+=1) {
+              /* The drawImage function of the canvas' context element
+               * requires 3 parameters: the image to draw, the x coordinate
+               * to start drawing and the y coordinate to start drawing.
+               * We're using our Resources helpers to refer to our images
+               * so that we get the benefits of caching these images, since
+               * we're using them over and over.
+               */
+               // draw the appropriate background tile by checking what row we're on
+               if (row === 0) {
+                 // draw the water at the top
+                 ctx.drawImage(Resources.get(rowImages[0]), col * tile_width, row * tile_height);
+               } else if (row < safe_row) {
+                 // road in the middle
+                 ctx.drawImage(Resources.get(rowImages[1]), col * tile_width, row * tile_height);
+               } else {
+                 // grass on the bottom
+                 ctx.drawImage(Resources.get(rowImages[2]), col * tile_width, row * tile_height);
+               }
+          }
+      }
+      // save the background image data to avoid a complete redraw in every frame
+      background = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+
     /* This function initially draws the "game level", it will then call
      * the renderEntities function. Remember, this function is called every
      * game tick (or loop of the game engine) because that's how games work -
      * they are flipbooks creating the illusion of animation but in reality
      * they are just drawing the entire screen over and over.
      */
-    function render() {
-        /* This array holds the relative URL to the image used
-         * for that particular row of the game level.
-         */
-        var rowImages = [
-                'images/water-block.png',   // Top row is water
-                'images/stone-block.png',   // Row 1 of 3 of stone
-                // 'images/stone-block.png',   // Row 2 of 3 of stone
-                // 'images/stone-block.png',   // Row 3 of 3 of stone
-                'images/grass-block.png',   // Row 1 of 2 of grass
-                // 'images/grass-block.png'    // Row 2 of 2 of grass
-            ],
-            numRows = rows,
-            numCols = cols,
-            row, col;
-        var safe_row = rows-2;
 
-        /* Loop through the number of rows and columns we've defined above
-         * and, using the rowImages array, draw the correct image for that
-         * portion of the "grid"
-         */
-        for (row = 0; row < numRows; row++) {
-            for (col = 0; col < numCols; col++) {
-                /* The drawImage function of the canvas' context element
-                 * requires 3 parameters: the image to draw, the x coordinate
-                 * to start drawing and the y coordinate to start drawing.
-                 * We're using our Resources helpers to refer to our images
-                 * so that we get the benefits of caching these images, since
-                 * we're using them over and over.
-                 */
-                 // draw the appropriate background tile by checking what row we're on
-                 if (row === 0) {
-                   // draw the water at the top
-                   ctx.drawImage(Resources.get(rowImages[0]), col * tile_width, row * tile_height);
-                 } else if (row < safe_row) {
-                   // road in the middle
-                   ctx.drawImage(Resources.get(rowImages[1]), col * tile_width, row * tile_height);
-                 } else {
-                   // grass on the bottom
-                   ctx.drawImage(Resources.get(rowImages[2]), col * tile_width, row * tile_height);
-                 }
-            }
-        }
-        // keep the top clear with a color
+    function render() {
+
+        // render the background using the saved, prerendered background image data
+        ctx.putImageData(background, 0, 0);
+        // render the info top bar area
         ctx.fillStyle = '#008286';
         ctx.fillRect(0,0, canvas.width, 50);
-
         renderEntities();
 
     }
@@ -178,6 +185,46 @@ var Engine = (function(global) {
      */
     function reset() {
         // noop
+    }
+
+    function canCollide() {
+      // compare player row with entity rows. if player is on an entity row
+      // OR is moving from one row to another, run collision checks on those
+      // entities on those rows only
+      var collidable_objects = [];
+      var current_enemy;
+      var current_enemy_row_pos;
+
+      for (i=0; i < allEnemies.length; i+=1) {
+        current_enemy_row_pos = allEnemies[i][position][row];
+        if (current_enemy_pos == player.row) {
+          // finish diz
+          collidable_objects.push(TODO currentenemy)
+        }
+      }
+    }
+
+    function collides(x, y, r, b, x2, y2, r2, b2) {
+    return !(r <= x2 || x > r2 ||
+             b <= y2 || y > b2);
+    }
+
+    function boxCollides(pos, size, pos2, size2) {
+        return collides(pos[0], pos[1],
+                        pos[0] + size[0], pos[1] + size[1],
+                        pos2[0], pos2[1],
+                        pos2[0] + size2[0], pos2[1] + size2[1]);
+    }
+
+    function checkCollisions() {
+      // array to hold all the things to check for collisions
+      var objects = [];
+      // check if player collided with any of the collidable objects
+      // run the boxcollides function on the player object and compare
+      // with every other entity. no projectiles or enemy on enemy
+      // collisions to deal with so we can just do player to entity comparisons
+
+
     }
 
     /* Go ahead and load all of the images we know we're going to need to

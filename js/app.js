@@ -94,6 +94,8 @@ Return: Constructed Enemy instance
 */
     // define speed of animated movement for this enemy instance
     this.speed = speed;
+    // the row # the enemy is in (starting at 1 at top, 2 for row below, etc)
+    this.row = start_position.row;
 
     // settings object to set the basics of each enemy instance
     var settings = {
@@ -144,6 +146,16 @@ Enemy.prototype.update = function(dt) {
 
 var Player = function(start_position) {
 
+  // initialize a move distance tracker for animating player movement
+  this.distance_moved = 0;
+  // track if player is moving rows
+  this.moving = false;
+  // track the row player is in
+  this.row = start_position.row;
+  // tracks the row player is moving to when moving
+  this.destination_row = start_position.row;
+
+
   var settings = {
     // image url location for this enemy
     sprite: 'images/char-boy.png',
@@ -156,9 +168,6 @@ var Player = function(start_position) {
   };
   // create player class by calling entity class, resetting that this to player this
   Entity.call(this, settings);
-
-  // initialize a move distance tracker for animating player movement
-  this.distance_moved = 0;
 
 };
 // delegate player prototype to entity prototype
@@ -183,34 +192,34 @@ Return: none
   var horizontal_move = key_pressed == 'left' || key_pressed == 'right';
   var vertical_move = key_pressed == 'up' || key_pressed == 'down';
 
+  // set moving status of player to true since we're on the move
+  this.moving = true;
+
   // check if the animation has completed moving a tile and stop it if so
   // check keypress type for appropriate distance/tile comparison
   if (horizontal_move) {
 
-    // stop the movement animation when moving offscreen or move completed
-    if (// check if we've travelled 1 tile's width
-        this.distance_moved >= tile_width ||
-        // check if we're moving off screen on the left
-        key_pressed == 'left' && this.x <= player_boundary_left ||
-        // check if we're moving offscreen on the right
-        key_pressed == 'right' && this.x >= player_boundary_right) {
+    // stop the movement animation if we've travelled 1 tile's width
+    if (this.distance_moved >= tile_width) {
           // reset the distance
           this.distance_moved = 0;
+          // movement complete so moving status should be back to false
+          this.moving = false;
           // exit animation function
           return;
     }
 
   } else if (vertical_move) {
 
-    // stop the movement animation when moving offscreen or move completed
-    if (// check if we've travelled 1 tile's height
-        this.distance_moved >= tile_height ||
-        // check if we're moving off screen at the top
-        key_pressed == 'up' && this.y <= player_boundary_top ||
-        // check if we're moving off screen at the bottom
-        key_pressed == 'down' && this.y >= player_boundary_bottom) {
+    // stop the movement animation if we've travelled 1 tile's height
+    if (this.distance_moved >= tile_height ) {
           // reset the distance
           this.distance_moved = 0;
+          // movement complete so moving status should be back to false
+          this.moving = false;
+          // set row value to destination row value, clamp to keep value in screen bounds
+          this.row = clamp(this.destination_row, 1, rows);
+          console.log(this.row);
           // exit animation function
           return;
     }
@@ -251,14 +260,20 @@ Return: n/a but increments the player postion x/y in the outer scope
       tile_distance = -Math.abs(tile_width);
       break;
     case 'right':
+      // move the tile width, positive because we're moving right away from origin
       tile_distance = tile_width;
       break;
     case 'up':
       // make negative because moving up in y position means subtracting pixels
       tile_distance = -Math.abs(tile_height);
+      // destination row is 1 less than current row since we're moving up
+      this.destination_row = this.row - 1;
       break;
     case 'down':
+      // positive because we're moving down away from the origin
       tile_distance = tile_height;
+      // add 1 for destination row when moving down away from origin
+      this.destination_row = this.row + 1;
       break;
     }
 
@@ -266,10 +281,11 @@ Return: n/a but increments the player postion x/y in the outer scope
     speed_in_pixels = tile_distance * speed_per_frame;
 
     // increment the appropriate player x or y position (x:horizontal, y:vertical)
+    // clamp keeps the player position from going off screen
     if (direction == 'left' || direction == 'right') {
-      this.x += speed_in_pixels;
+      this.x = clamp(this.x + speed_in_pixels, player_boundary_left, player_boundary_right);
     } else {
-      this.y += speed_in_pixels;
+      this.y = clamp(this.y + speed_in_pixels, player_boundary_top, player_boundary_bottom);
     }
 
     // increment distance moved so far tracker with the absolute value of the speed
@@ -330,18 +346,19 @@ for (i=0; i < enemy_rows; i+=1) {
   // check if the current row is one of the last for increased difficulty
   if (i < last_rows) {
     // set more enemies in current row if one of the last rows
-    enemies_in_current_row = random_num_in_range(1, hard_max_enemies);
+    enemies_in_current_row = random_num_in_range(2, hard_max_enemies);
     // higher range for the enemy speed
     current_enemy_speed = Math.floor(random_num_in_range(150, 200));
   } else {
     // less possible enemies for regular rows
     enemies_in_current_row = random_num_in_range(1, easy_max_enemies);
     // standard enemy speed 50-180 px per sec
-    current_enemy_speed = Math.floor(random_num_in_range(50, 180));
+    current_enemy_speed = Math.floor(random_num_in_range(50, 160));
   }
 
   // calculate the enemy y position by getting the current row's pixel height
   // then subtracting pixels to center the enemy vertically in the row
+  // i+1 to skip spawning enemies in the top goal row
   current_enemy_y_pos = (i+1) * tile_height - enemy_center_y_adjustment;
   // calculate evenly distributed pixel space between each enemy sprite
   space_between_enemies = cols * tile_width / enemies_in_current_row;
@@ -354,7 +371,11 @@ for (i=0; i < enemy_rows; i+=1) {
 
     // construct the enemies for the current row and push to the allEnemies array
     allEnemies.push(
-      new Enemy({x: current_enemy_x_pos, y: current_enemy_y_pos}, current_enemy_speed)
+      new Enemy({x: current_enemy_x_pos,
+                 y: current_enemy_y_pos,
+                 // adding 1 to make the row grid start at 1
+                 row: i+1},
+                current_enemy_speed)
     );
   }
 }
@@ -372,7 +393,9 @@ var player_start_position = {
   x: center_tile,
   // start the player at the bottom of the rows, adjust position to center sprite
   // feet on the tile 'ground', adjustment is just to get a perfect centering
-  y: (tile_height * rows) - (full_img_tile_height * 2/3)
+  y: (tile_height * rows) - (full_img_tile_height * 2/3),
+  // adding 1 to make the row grid starting at 1
+  row: rows
 };
 
 // instantiate the player character
@@ -398,6 +421,7 @@ document.addEventListener('keyup', function(e) {
     if (e.keyCode in allowedKeys) {
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
+      // update player's current row position
 
       // call the player movement animation which handles player movement
       // checks key_pressed value from this outer scope for movement direction
