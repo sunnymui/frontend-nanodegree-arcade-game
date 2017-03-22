@@ -50,6 +50,7 @@ var Engine = (function(global) {
         /* Call our update/render functions, pass along the time delta to
          * our update function since it may be used for smooth animation.
          */
+
         update(dt);
         render();
 
@@ -187,38 +188,95 @@ var Engine = (function(global) {
         // noop
     }
 
-    function canCollide() {
-      // compare player row with entity rows. if player is on an entity row
-      // OR is moving from one row to another, run collision checks on those
-      // entities on those rows only
+    function canCollide(entity_array) {
+      /*
+      Checks if entities are close enough to the player for possible collision.
+      If so, add it to the collidable objects array to be returned.
+      Args:
+      Return: objects that player could possibly collide with (array)
+      */
       var collidable_objects = [];
-      var current_enemy;
-      var current_enemy_row_pos;
+      // init vars to store current entity data
+      var current_entity;
+      var current_entity_row_pos;
 
-      for (i=0; i < allEnemies.length; i+=1) {
-        current_enemy_row_pos = allEnemies[i][position][row];
-        if (current_enemy_pos == player.row) {
-          // finish diz
-          collidable_objects.push(TODO currentenemy)
+      // loop entities array to find entity close enough to collide w/ player
+      for (i=0; i < entity_array.length; i+=1) {
+        // store current entity
+        current_entity = entity_array[i];
+        // store the current entity row position
+        current_entity_row_pos = current_entity.row;
+
+        // if current entity is in same row as the player
+        if (current_entity_row_pos === player.row) {
+          // add the entity to the collidable objects array
+          collidable_objects.push(current_entity);
+        }
+
+        // check if player is moving to another row
+        if (player.moving === true) {
+          // if player is on the move, also need to check enemies in the destination row
+          if (current_entity_row_pos === player.destination_row ) {
+            // add entity to collidable objects array
+            collidable_objects.push(current_entity);
+          }
         }
       }
+
+      return collidable_objects;
     }
 
-    function collides(x, y, r, b, x2, y2, r2, b2) {
-    return !(r <= x2 || x > r2 ||
-             b <= y2 || y > b2);
+    function collides(entity_1, entity_2) {
+      /*
+      collides(x, y, r, b, x2, y2, r2, b2)
+
+      Checks if any of the bounds of the first object are within the bounds of the
+      second object by using their respective positions and the position of their
+      top right and bottom left corners.
+      Args: expects first object and second object to compare.
+            each object requires this data -
+            {
+              x: x position on the left edge (integer),
+              y: y position on top edge (integer),
+              r: x position on the right edge (integer),
+              b: y position on the bottom edge (integer),
+            }
+      Return: boolean,
+              true if any of the bounds are within each other aka collision,
+              false if not, aka no collision
+      */
+      return !(entity_1.r <= entity_2.x || entity_1.x > entity_2.r ||
+             entity_1.b <= entity_2.y || entity_1.y > entity_2.b);
     }
 
-    function boxCollides(pos, size, pos2, size2) {
-        return collides(pos[0], pos[1],
-                        pos[0] + size[0], pos[1] + size[1],
-                        pos2[0], pos2[1],
-                        pos2[0] + size2[0], pos2[1] + size2[1]);
+    function boxCollides(player, entity) {
+      // TODO adjust entitys and players x and y since the images dont actually start where the artwork is
+        return collides(
+          {
+            x: player.x,
+            y: player.y,
+            r: player.x + player.size.width,
+            b: player.y + player.size.height
+          },
+          {
+            x: entity.x,
+            y: entity.y,
+            r: entity.x + entity.size.width,
+            b: entity.y + entity.size.height
+          }
+        );
     }
 
     function checkCollisions() {
       // array to hold all the things to check for collisions
-      var objects = [];
+      var entities_to_check = canCollide(allEnemies);
+      var current_entity;
+
+      for (i = 0; i < entities_to_check.length; i+=1) {
+        current_entity = entities_to_check[i];
+        boxCollides(player, current_entity);
+      }
+
       // check if player collided with any of the collidable objects
       // run the boxcollides function on the player object and compare
       // with every other entity. no projectiles or enemy on enemy

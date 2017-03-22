@@ -85,7 +85,7 @@ Entity.prototype.update = function(dt) {
 /////////////////////////
 
 // Enemies our player must avoid
-var Enemy = function(start_position, speed) {
+var Enemy = function(start_position, speed, type) {
 /*
 Constructor for the Enemy subclass, built on top of the Entity superclass.
 Args: start_position (object) - obj literal containing {x:, y:} location info
@@ -96,11 +96,22 @@ Return: Constructed Enemy instance
     this.speed = speed;
     // the row # the enemy is in (starting at 1 at top, 2 for row below, etc)
     this.row = start_position.row;
+    // the type of enemy this will be
+    this.type = type;
+
+    // temp var to store the sprite img url
+    var sprite_img;
+    // check for enemy type and assign appropriate settings for that enemy type
+    switch (type) {
+      case 'red bug':
+        sprite_img = 'images/enemy-bug.png';
+        break;
+    }
 
     // settings object to set the basics of each enemy instance
     var settings = {
       // image url location for this enemy
-      sprite: 'images/enemy-bug.png',
+      sprite: sprite_img,
       position: start_position,
       // size of hitbox for collision detection
       size: {
@@ -219,7 +230,6 @@ Return: none
           this.moving = false;
           // set row value to destination row value, clamp to keep value in screen bounds
           this.row = clamp(this.destination_row, 1, rows);
-          console.log(this.row);
           // exit animation function
           return;
     }
@@ -373,9 +383,10 @@ for (i=0; i < enemy_rows; i+=1) {
     allEnemies.push(
       new Enemy({x: current_enemy_x_pos,
                  y: current_enemy_y_pos,
-                 // adding 1 to make the row grid start at 1
-                 row: i+1},
-                current_enemy_speed)
+                 // adding 2 to make the row grid start at 1 and skip the first goal row
+                 row: i+2},
+                current_enemy_speed,
+                'red bug')
     );
   }
 }
