@@ -44,7 +44,7 @@ var Engine = (function(global) {
          * would be the same for everyone (regardless of how fast their
          * computer is) - hurray time!
          */
-        var now = Date.now(),
+        var now = Date.now();
             dt = (now - lastTime) / 1000.0;
 
         /* Call our update/render functions, pass along the time delta to
@@ -88,7 +88,7 @@ var Engine = (function(global) {
      */
     function update(dt) {
         updateEntities(dt);
-        // checkCollisions();
+        checkCollisions();
     }
 
     /* This is called by the update function and loops through all of the
@@ -228,8 +228,6 @@ var Engine = (function(global) {
 
     function collides(entity_1, entity_2) {
       /*
-      collides(x, y, r, b, x2, y2, r2, b2)
-
       Checks if any of the bounds of the first object are within the bounds of the
       second object by using their respective positions and the position of their
       top right and bottom left corners.
@@ -249,39 +247,69 @@ var Engine = (function(global) {
              entity_1.b <= entity_2.y || entity_1.y > entity_2.b);
     }
 
-    function boxCollides(player, entity) {
-      // TODO adjust entitys and players x and y since the images dont actually start where the artwork is
+    function calc_hitbox_collision(player, entity) {
+    /*
+    Calculate the hitbox corners of the player and the entity, then use those
+    coordinates for the collision detection algorithm. The hitboxes aren't the
+    same as where the images start, thus the adjustment.
+    Args: player (object), entity (object) to compare with player hitbox
+    Return: true if the hitboxes collide, false if no collision (boolean)
+    */
+
         return collides(
           {
-            x: player.x,
-            y: player.y,
-            r: player.x + player.size.width,
-            b: player.y + player.size.height
+            x: player.x + player.hitbox_x,
+            y: player.y + player.hitbox_y,
+            r: player.x + player.hitbox_x + player.width,
+            b: player.y + player.hitbox_y + player.height
           },
           {
-            x: entity.x,
-            y: entity.y,
-            r: entity.x + entity.size.width,
-            b: entity.y + entity.size.height
+            x: entity.x + entity.hitbox_x,
+            y: entity.y + entity.hitbox_y,
+            r: entity.x + entity.hitbox_x + entity.width,
+            b: entity.y + entity.hitbox_y + entity.height
           }
         );
     }
 
     function checkCollisions() {
-      // array to hold all the things to check for collisions
-      var entities_to_check = canCollide(allEnemies);
-      var current_entity;
+      /*
+      check if player collided with any of the collidable objects
+      run the boxcollides function on the player object and compare
+      with every other entity. no projectiles or enemy on enemy
+      collisions to deal with so we can just do player to entity comparisons
+      Args:
+      Return:
+      */
 
-      for (i = 0; i < entities_to_check.length; i+=1) {
-        current_entity = entities_to_check[i];
-        boxCollides(player, current_entity);
+      // var for the different arrays of entities to be checked by as collidable
+      var entity_types;
+      if (player.invulnerable) {
+        entity_types = [];
+      } else {
+        entity_types = allEnemies; //allEnemies.concat(items);
       }
+      // array to hold all the entities to check for collisions
+      var entities_to_check = canCollide(entity_types);
 
-      // check if player collided with any of the collidable objects
-      // run the boxcollides function on the player object and compare
-      // with every other entity. no projectiles or enemy on enemy
-      // collisions to deal with so we can just do player to entity comparisons
+      // init vars for the current entity to check and collision happened check
+      var current_entity;
+      var collision_happened;
 
+      // loop through the entities to check array
+      for (i = 0; i < entities_to_check.length; i+=1) {
+        // assign current entity to current array index element
+        current_entity = entities_to_check[i];
+        // compare player and entity hitbox locations to determine collision
+        collision_happened = calc_hitbox_collision(player, current_entity);
+        // if collision happened aka calc_hitbox_collision function returns true
+        if (collision_happened) {
+          // player collided function does all the animating and temp invulnerability
+          player.collided(current_entity);
+          // only one collision w/ something at a time for now so skip the rest
+          break;
+        }
+      }
 
     }
 
@@ -294,7 +322,8 @@ var Engine = (function(global) {
         'images/water-block.png',
         'images/grass-block.png',
         'images/enemy-bug.png',
-        'images/char-boy.png'
+        'images/char-boy.png',
+        'images/char-boy-hit.gif'
     ]);
     Resources.onReady(init);
 

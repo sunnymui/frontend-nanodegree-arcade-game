@@ -26,6 +26,10 @@ var player_boundary_top = -31;
 // rows - 1 (since we start in middle of a tile) times tile height, adjust for
 // the little undeground part on the bottom row
 var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
+// init delta time to make timing equal across different performing browsers
+var dt;
+// timer for collisions
+var collision_timer = 0;
 
 // Utility functions
 
@@ -59,14 +63,17 @@ var Entity = function(settings) {
 /*
 Superclass constructor for all the interactive entities in the game
 ie player, enemies, powerups.
-Args: settings object containing data the a particular entity
-Return: constructor returned entity object
+Args: settings object containing data for a particular entity
+Return: constructor returned entity (object)
 */
   this.sprite = settings.sprite;
   this.x = settings.position.x;
   this.y = settings.position.y;
   this.width = settings.size.width;
   this.height = settings.size.height;
+  // sets the horizontal position of the hitbox within the sprite img,
+  // basically how far in px from the left edge of the image to put the hitbox
+  this.hitbox_x = Math.floor(tile_width/2) - this.width/2;
 };
 
 Entity.prototype.render = function() {
@@ -90,21 +97,21 @@ var Enemy = function(start_position, speed, type) {
 Constructor for the Enemy subclass, built on top of the Entity superclass.
 Args: start_position (object) - obj literal containing {x:, y:} location info
       speed (number) - speed that this enemy should move across the canvas at
-Return: Constructed Enemy instance
+      type (string) - name of the type of enemy to get specific settings for it
+Return: Constructed Enemy instance (object)
 */
-    // define speed of animated movement for this enemy instance
-    this.speed = speed;
-    // the row # the enemy is in (starting at 1 at top, 2 for row below, etc)
-    this.row = start_position.row;
+
     // the type of enemy this will be
     this.type = type;
 
-    // temp var to store the sprite img url
+    // var to store the sprite img url to insert in settings
     var sprite_img;
     // check for enemy type and assign appropriate settings for that enemy type
     switch (type) {
       case 'red bug':
         sprite_img = 'images/enemy-bug.png';
+        // set bottom of hitbox to the bottom of the actual sprite art
+        this.hitbox_bottom_edge = 139;
         break;
     }
 
@@ -122,6 +129,13 @@ Return: Constructed Enemy instance
 
     // delegate settings to the Entity superclass
     Entity.call(this, settings);
+
+    // define speed of animated movement for this enemy instance
+    this.speed = speed;
+    // the row # the enemy is in (starting at 1 at top, 2 for row below, etc)
+    this.row = start_position.row;
+    // calculate the top y position of the hitbox upwards using the height
+    this.hitbox_y = this.hitbox_bottom_edge - this.height;
 };
 // set the enemy prototype equal to an instance of the Entity's prototype
 Enemy.prototype = Object.create(Entity.prototype);
@@ -155,7 +169,41 @@ Enemy.prototype.update = function(dt) {
 //   PLAYER SUBCLASS   //
 /////////////////////////
 
-var Player = function(start_position) {
+var Player = function(start_position, type) {
+  /*
+  Constructor for the Player subclass, built on top of the Entity superclass.
+  Args: start_position (object) - obj literal containing {x:, y:} location info
+        type (string) - name of the type of player to get specific settings for it
+  Return: Constructed Player instance (object)
+  */
+
+  // the type of character this will be
+  this.type = type;
+
+  // SPRITE IMAGES
+
+  // var to store the sprite img url to insert in settings
+  //var sprite_img;
+  // check for player type and assign appropriate settings for that enemy type
+  switch (type) {
+    case 'boy':
+      this.default_sprite_img = 'images/char-boy.png';
+      this.collision_img = 'images/char-boy-hit.gif';
+      break;
+  }
+
+  var settings = {
+    // image url location for this enemy
+    sprite: this.default_sprite_img,
+    position: start_position,
+    // set the size for the hitbox used for collision detection
+    size: {
+      width: 50,
+      height: 60
+    }
+  };
+  // create player class by calling entity class, resetting that this to player this
+  Entity.call(this, settings);
 
   // initialize a move distance tracker for animating player movement
   this.distance_moved = 0;
@@ -165,20 +213,12 @@ var Player = function(start_position) {
   this.row = start_position.row;
   // tracks the row player is moving to when moving
   this.destination_row = start_position.row;
-
-
-  var settings = {
-    // image url location for this enemy
-    sprite: 'images/char-boy.png',
-    position: start_position,
-    // set the size for the hitbox used for collision detection
-    size: {
-      width: 50,
-      height: 50
-    }
-  };
-  // create player class by calling entity class, resetting that this to player this
-  Entity.call(this, settings);
+  // set hitbox bottom y edge to bottom of player sprite artwork
+  this.hitbox_bottom_edge = 114;
+  // set hitbox top y position upwards from the bottom of the art to the height
+  this.hitbox_y = this.hitbox_bottom_edge - this.height;
+  // invulnerability flag to disable collisions
+  this.invulnerable = false;
 
 };
 // delegate player prototype to entity prototype
@@ -186,7 +226,11 @@ Player.prototype = Object.create(Entity.prototype);
 // set player constructor property to correct function instead of Entity
 Player.prototype.constructor = Player;
 
+// PLAYER FUNCTIONS
+
 Player.prototype.update = function(dt) {
+
+  this.check_status();
 
 };
 
@@ -244,15 +288,16 @@ Return: none
     // run animate player with the correct context of the player instance
     self.animate_player();
   });
-  // draw a frame of the animation
+  // move the player some pixel distance in the key defined direction
   this.player_move(key_pressed);
 
 };
 
 Player.prototype.player_move = function(direction) {
 /*
-Moves the player sprite a set distance for one frame of a requestanimationframe
-loop, based on the direction from the key press.
+Moves the player sprite a set distance based on the direction from the key press.
+Integrated boundary handling to keep player from moving off screen. This function
+needs to keep being called by requestanimationframe until the distance is fully moved.
 Args: the direction of movement (string) - expects an arrow key direction value
       string like 'left', 'right', 'up', 'down'
 Return: n/a but increments the player postion x/y in the outer scope
@@ -303,6 +348,55 @@ Return: n/a but increments the player postion x/y in the outer scope
 
 };
 
+Player.prototype.collided = function(entity) {
+  /*
+  Does stuff to player object when a collision happens
+  Args: entity(obj) - the entity that player collided with
+  Return:
+  */
+    var counter = 0;
+    var original_pos = this.y;
+    console.log('COLLISION OH NO');
+
+    if (entity instanceof Enemy) {
+      console.log('and its an enemy!');
+      // make player invulnerable temporarily to stop like 60 collisions/sec from happening
+      this.invulnerable = true;
+      // change sprite to collision sprite image
+      this.sprite = this.collision_img;
+    }
+
+};
+
+Player.prototype.check_status = function() {
+  /*
+  Check status conditions of the player instance and do appropriate things for each.
+  */
+
+  // INVULNERABILITY STATUS CONDITION
+
+  // time limit for invulnerable state (in number of frames, typically 60/sec)
+  var invulnerability_time_limit = 180;
+  // check if player state is currently invulnerable
+  if (this.invulnerable) {
+    // increment the timer
+    collision_timer += 1;
+    // if the timer reaches the invulnerability time limit
+    if (collision_timer >= invulnerability_time_limit) {
+      console.log('invulnerable time limit reached');
+      // rest the timer
+      collision_timer = 0;
+      // make player vulnerable again
+      this.invulnerable = false;
+      // this.sprite back to default
+      this.sprite = this.default_sprite_img;
+    }
+  }
+
+
+};
+
+
 //////////////////////////////////
 //     INSTANTIATE OBJECTS      //
 //////////////////////////////////
@@ -318,7 +412,6 @@ var j;
 // array to store all enemy instances
 var allEnemies = [];
 // pixel position adjustments for centering the sprite on the tile
-var player_center_x_adjustment = 50;
 var enemy_center_y_adjustment = 30;
 // figure out number of rows to spawn enemies in
 // subtract 3 for the water row and the 2 grass rows
@@ -410,7 +503,9 @@ var player_start_position = {
 };
 
 // instantiate the player character
-var player = new Player(player_start_position);
+var player = new Player(player_start_position, 'boy');
+console.log(player.sprite);
+console.log(player.default_sprite_img);
 
 //////////////
 // CONTROLS //
