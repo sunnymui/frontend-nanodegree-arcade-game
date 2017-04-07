@@ -3,6 +3,8 @@
 // playing field and tile sizes
 var rows = 7;
 var cols = 7;
+// goal row player must reach to score
+var goal_row = 1;
 var tile_width = 101;
 // note: not actual height of the img, just the square 'above ground' part
 var tile_height = 83;
@@ -14,6 +16,9 @@ var canvas_width = cols * tile_width;
 var canvas_height = rows * tile_width;
 // pixel height for the bottom tile's little extra undeground part showing
 var bottom_underground = 31;
+// init delta time to make timing equal across different performing browsers
+var dt;
+
 
 // playing field boundaries keep the player from leaving the canvas
 // beginning of canvas x coordinate system, it's 1 since tile width is 101 so
@@ -26,10 +31,6 @@ var player_boundary_top = -31;
 // rows - 1 (since we start in middle of a tile) times tile height, adjust for
 // the little undeground part on the bottom row
 var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
-// init delta time to make timing equal across different performing browsers
-var dt;
-// timer for collisions
-var collision_timer = 0;
 
 // Utility functions
 
@@ -223,6 +224,8 @@ var Player = function(start_position, type) {
   // create player class by calling entity class, resetting that this to player this
   Entity.call(this, settings);
 
+  // player score tracker
+  this.score = 0;
   // initialize a move distance tracker for animating player movement
   this.distance_moved = 0;
   // track if player is moving rows
@@ -235,10 +238,21 @@ var Player = function(start_position, type) {
   this.hitbox_bottom_edge = 114;
   // set hitbox top y position upwards from the bottom of the art to the height
   this.hitbox_y = this.hitbox_bottom_edge - this.height;
+  // enemy-player collision flag if player hit an enemy
+  this.enemy_collided = false;
   // invulnerability flag to disable collisions
   this.invulnerable = false;
   // mobility flag to prevent movement when immobile status is triggered
   this.immobile = false;
+  // timers for various statuses
+  this.timers = {
+    // track the # of frames after a collision for status condition time limits
+    collision: 0,
+    // # frames player is invulnerable after collision (typically 60 frames/sec)
+    invulnerability_limit: 80,
+    // # frames player will be unable to use keyboard movement
+    immobile_limit: 50
+  };
 
 };
 // delegate player prototype to entity prototype
@@ -249,15 +263,25 @@ Player.prototype.constructor = Player;
 // PLAYER FUNCTIONS
 
 Player.prototype.update = function(dt) {
+/*
+Thing that need updating or checking every frame executed in this function.
+Args: dt (number) - the delta time for equalizing speeds across systems
+Return: na
+*/
+
+  // NOTE: checking if player reached the goal row is in the animte_player_move
+  // function, only need to check after a complete move instead of every frame
 
   // update player sprite
   this.sprite.update(dt);
+  // check for player status conditions
   this.check_status();
+
 
 };
 
 // function for the request animation frame player animation loop
-Player.prototype.animate_player = function() {
+Player.prototype.animate_player_move = function() {
 /*
 Runs animation loop for player movement and checks to see if a movement has
 completed before ending the animation.
@@ -296,6 +320,8 @@ Return: none
           this.moving = false;
           // set row value to destination row value, clamp to keep value in screen bounds
           this.row = clamp(this.destination_row, 1, rows);
+          // check if goal row is reached
+          this.check_if_goal_reached();
           // exit animation function
           return;
     }
@@ -308,7 +334,7 @@ Return: none
   // run recursive animation loop and store id for canceling animation if needed
   var request_id = requestAnimationFrame(function() {
     // run animate player with the correct context of the player instance
-    self.animate_player();
+    self.animate_player_move();
   });
   // move the player some pixel distance in the key defined direction
   this.player_move(key_pressed);
@@ -372,21 +398,31 @@ Return: n/a but increments the player postion x/y in the outer scope
 
 Player.prototype.collided = function(entity) {
   /*
-  Does stuff to player object when a collision happens
+  Checks what player collided with and sets appropriate statuses
+  and animations absed on the thing player collided with.
   Args: entity(obj) - the entity that player collided with
-  Return:
+  Return: none
   */
-    var counter = 0;
-    var original_pos = this.y;
-    console.log('COLLISION OH NO');
 
+    // if player collided with an enemy
     if (entity instanceof Enemy) {
-      console.log('and its an enemy!');
-      // make player invulnerable temporarily to stop like 60 collisions/sec from happening
+      // set enemy-player collision flag to true since we player got hit
+      this.enemy_collided = true;
+      // make player invulnerable temporarily to stop 60 collisions/sec from happening
       this.invulnerable = true;
-      // change sprite to collision sprite image
+      // change sprite to collision sprite image animation
       this.set_collision_sprite();
     }
+
+};
+
+Player.prototype.check_if_goal_reached = function() {
+  /*
+  */
+  if (this.row == goal_row) {
+    this.score += 10;
+    console.log('winrar! score: ', this.score);
+  }
 
 };
 
@@ -397,8 +433,6 @@ Player.prototype.set_collision_sprite = function() {
   this.sprite.final_frame = 22;
 
   this.immobile = true;
-  console.log(this.sprite);
-  console.log(this.sprite.frames);
 };
 
 Player.prototype.reset_sprite = function() {
@@ -409,9 +443,6 @@ Player.prototype.reset_sprite = function() {
   this.sprite.frame_counter = 0;
 
   this.immobile = false;
-  console.log('resetting to:');
-  console.log(this.sprite);
-  console.log(this.sprite.frames);
 };
 
 Player.prototype.check_status = function() {
@@ -419,23 +450,35 @@ Player.prototype.check_status = function() {
   Check status conditions of the player instance and do appropriate things for each.
   */
 
-  // INVULNERABILITY STATUS CONDITION
+  //// STATUS CONDITIONS ////
 
-  // time limit for invulnerable state (in number of frames, typically 60/sec)
-  var invulnerability_time_limit = 180;
-  // check if player state is currently invulnerable
-  if (this.invulnerable) {
-    // increment the timer
-    collision_timer += 1; // TODO refactor these into the player object to keep things tidy
+  // ENEMY COLLIDED WITH PLAYER
+
+  // check if an enemy collided with player
+  if (this.enemy_collided) {
+    // increment collision timer
+    this.timers.collision += 1;
+
+    // INVULNERABLE
+
     // if the timer reaches the invulnerability time limit
-    if (collision_timer >= invulnerability_time_limit) {
-      console.log('invulnerable time limit reached');
+    if (this.timers.collision >= this.timers.invulnerability_limit) {
       // rest the timer
-      collision_timer = 0;
+      this.timers.collision = 0;
       // make player vulnerable again
       this.invulnerable = false;
+      // reset enemy collision flag
+      this.enemy_collided = false;
       // this.sprite back to default
       this.reset_sprite();
+    }
+
+    // IMMOBILE
+
+    // check if player is unable to move
+    if (this.timers.collision >= this.timers.immobile_limit) {
+      // let player move again
+      this.immobile = false;
     }
   }
 
@@ -461,8 +504,6 @@ var enemy_center_y_adjustment = 30;
 // figure out number of rows to spawn enemies in
 // subtract 3 for the water row and the 2 grass rows
 var enemy_rows = rows - 3;
-// y position value of the middle of the goal row, where player would be
-var goal_row = -31;
 
 // init var to get the last rows which will have higher difficulty enemies
 var last_rows;
@@ -578,7 +619,7 @@ document.addEventListener('keyup', function(e) {
       requestAnimationFrame(function() {
         // passing this in anonymous function lets the correct context
         // of player be used instead of window
-        player.animate_player();
+        player.animate_player_move();
       });
     }
 

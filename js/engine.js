@@ -276,9 +276,13 @@ var Engine = (function(global) {
 
         return collides(
           {
+            // top right corner x coordinate
             x: player.x + player.hitbox_x,
+            // top right corner y coordinate
             y: player.y + player.hitbox_y,
+            // bottom left corner x coordinate
             r: player.x + player.hitbox_x + player.width,
+            // bottom left corner y coordinate
             b: player.y + player.hitbox_y + player.height
           },
           {
@@ -302,10 +306,11 @@ var Engine = (function(global) {
 
       // var for the different arrays of entities to be checked by as collidable
       var entity_types;
+      // check if player is invulnerable to cancel check for enemies
       if (player.invulnerable) {
         entity_types = [];
       } else {
-        entity_types = allEnemies; //allEnemies.concat(items);
+        entity_types = allEnemies;
       }
       // array to hold all the entities to check for collisions
       var entities_to_check = canCollide(entity_types);
@@ -340,7 +345,7 @@ var Engine = (function(global) {
         'images/water-block.png',
         'images/grass-block.png',
         'images/enemy-bug.png',
-        'images/char-boy.png',
+        //'images/char-boy.png',
         'images/char-boy-map.png',
         'images/char-boy-hit.png'
     ]);
