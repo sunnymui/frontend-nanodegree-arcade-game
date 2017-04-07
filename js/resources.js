@@ -108,4 +108,69 @@
         onReady: onReady,
         isReady: isReady
     };
+
+    // utility plugin for sprite class
+    // grabbed from this tutorial: http://jlongster.com/Making-Sprite-based-Games-with-Canvas
+    // https://github.com/jlongster/canvas-game-bootstrap/blob/a878158f39a91b19725f726675c752683c9e1c08/js/sprite.js
+    function Sprite(url, pos, size, speed, frames, dir, once, final_frame) {
+      this.pos = pos;
+      this.size = size;
+      this.speed = typeof speed === 'number' ? speed : 0;
+      this.frames = frames;
+      this._index = 0;
+      this.url = url;
+      this.dir = dir || 'horizontal';
+      this.once = once;
+      this.final_frame = final_frame;
+      this.frame_counter = 0;
+    }
+
+    Sprite.prototype = {
+      update: function(dt) {
+          this._index += this.speed*dt;
+      },
+
+      render: function(ctx) {
+          var frame;
+
+          if(this.speed > 0) {
+              var max = this.frames.length;
+              var idx = Math.floor(this._index);
+              console.log(this._index);
+              console.log(max);
+              //frame = this.frames[idx % max];
+              frame = this.frames[this.frame_counter];
+              this.frame_counter += 1;
+
+              //if(this.once && idx >= max) {
+              if (this.once && this.frame_counter >= max) {
+                  this.done = true;
+                  frame = this.final_frame;
+                  //return;
+              }
+          }
+          else {
+              frame = 0;
+          }
+
+
+          var x = this.pos[0];
+          var y = this.pos[1];
+
+          if(this.dir == 'vertical') {
+              y += frame * this.size[1];
+          }
+          else {
+              x += frame * this.size[0];
+          }
+
+          ctx.drawImage(Resources.get(this.url),
+                        x, y,
+                        this.size[0], this.size[1],
+                        0, 0,
+                        this.size[0], this.size[1]);
+      }
+    };
+
+    window.Sprite = Sprite;
 })();

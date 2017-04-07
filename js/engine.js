@@ -159,9 +159,12 @@ var Engine = (function(global) {
         // render the background using the saved, prerendered background image data
         ctx.putImageData(background, 0, 0);
         // render the info top bar area
-        ctx.fillStyle = '#008286';
-        ctx.fillRect(0,0, canvas.width, 50);
-        renderEntities();
+        //ctx.fillStyle = '#008286';
+        //ctx.fillRect(0,0, canvas.width, 50);
+
+        //renderEntities();
+        renderEntities(allEnemies);
+        renderEntity(player);
 
     }
 
@@ -169,15 +172,30 @@ var Engine = (function(global) {
      * tick. Its purpose is to then call the render functions you have defined
      * on your enemy and player entities within app.js
      */
-    function renderEntities() {
-        /* Loop through all of the objects within the allEnemies array and call
-         * the render function you have defined.
-         */
-        allEnemies.forEach(function(enemy) {
-            enemy.render();
-        });
+    // function renderEntities() {
+    //     /* Loop through all of the objects within the allEnemies array and call
+    //      * the render function you have defined.
+    //      */
+    //     allEnemies.forEach(function(enemy) {
+    //         enemy.render();
+    //     });
+    //
+    //     player.render();
+    // }
 
-        player.render();
+    //TODO finish this
+
+    function renderEntities(list) {
+        for(var i=0; i<list.length; i++) {
+            renderEntity(list[i]);
+        }
+    }
+
+    function renderEntity(entity) {
+        ctx.save();
+        ctx.translate(entity.x, entity.y);
+        entity.sprite.render(ctx);
+        ctx.restore();
     }
 
     /* This function does nothing but it could have been a good place to
@@ -323,7 +341,8 @@ var Engine = (function(global) {
         'images/grass-block.png',
         'images/enemy-bug.png',
         'images/char-boy.png',
-        'images/char-boy-hit.gif'
+        'images/char-boy-map.png',
+        'images/char-boy-hit.png'
     ]);
     Resources.onReady(init);
 

@@ -55,6 +55,23 @@ Return: a random number (floating point) in the range
   return Math.random() * (max-min) + min;
 }
 
+function range(start, end) {
+/*
+Generates an array of a range of numbers starting at the start value and ending
+at the end value.
+Args: start (integer) - the first value in the array,
+      end (integer) - the last value in the array
+Return: array of length n containing values of each integer from start to end
+*/
+    var number_array = [];
+    // set index equal to the start value for use in loop and end at end value
+    for (var i = start; i <= end; i+=1) {
+        // push the index value to the array
+        number_array.push(i);
+    }
+    return number_array;
+}
+
 /////////////////////////
 //     ENTITY CLASS    //
 /////////////////////////
@@ -104,12 +121,10 @@ Return: Constructed Enemy instance (object)
     // the type of enemy this will be
     this.type = type;
 
-    // var to store the sprite img url to insert in settings
-    var sprite_img;
     // check for enemy type and assign appropriate settings for that enemy type
     switch (type) {
       case 'red bug':
-        sprite_img = 'images/enemy-bug.png';
+        this.default_sprite_img = 'images/enemy-bug.png';
         // set bottom of hitbox to the bottom of the actual sprite art
         this.hitbox_bottom_edge = 139;
         break;
@@ -118,7 +133,7 @@ Return: Constructed Enemy instance (object)
     // settings object to set the basics of each enemy instance
     var settings = {
       // image url location for this enemy
-      sprite: sprite_img,
+      sprite: new Sprite(this.default_sprite_img, [0,0], [tile_width, full_img_tile_height]),
       position: start_position,
       // size of hitbox for collision detection
       size: {
@@ -148,6 +163,9 @@ Enemy.prototype.update = function(dt) {
     // You should multiply any movement by the dt parameter
     // which will ensure the game runs at the same speed for
     // all computers.
+
+    // update the enemy sprite for any animations
+    this.sprite.update(dt);
 
     // animate these moving across the screen, unique to enemy
     // increment the horizontal position of the sprite, use delta time to keep
@@ -187,14 +205,14 @@ var Player = function(start_position, type) {
   // check for player type and assign appropriate settings for that enemy type
   switch (type) {
     case 'boy':
-      this.default_sprite_img = 'images/char-boy.png';
-      this.collision_img = 'images/char-boy-hit.gif';
+      this.default_sprite_img = 'images/char-boy-map.png';
+      this.collision_img = 'images/char-boy-hit.png';
       break;
   }
 
   var settings = {
     // image url location for this enemy
-    sprite: this.default_sprite_img,
+    sprite: new Sprite(this.default_sprite_img, [0,0], [tile_width,full_img_tile_height]),
     position: start_position,
     // set the size for the hitbox used for collision detection
     size: {
@@ -219,6 +237,8 @@ var Player = function(start_position, type) {
   this.hitbox_y = this.hitbox_bottom_edge - this.height;
   // invulnerability flag to disable collisions
   this.invulnerable = false;
+  // mobility flag to prevent movement when immobile status is triggered
+  this.immobile = false;
 
 };
 // delegate player prototype to entity prototype
@@ -230,6 +250,8 @@ Player.prototype.constructor = Player;
 
 Player.prototype.update = function(dt) {
 
+  // update player sprite
+  this.sprite.update(dt);
   this.check_status();
 
 };
@@ -363,9 +385,33 @@ Player.prototype.collided = function(entity) {
       // make player invulnerable temporarily to stop like 60 collisions/sec from happening
       this.invulnerable = true;
       // change sprite to collision sprite image
-      this.sprite = this.collision_img;
+      this.set_collision_sprite();
     }
 
+};
+
+Player.prototype.set_collision_sprite = function() {
+  this.sprite.speed = 20;
+  this.sprite.frames = range(0,22);
+  this.sprite.once = true;
+  this.sprite.final_frame = 22;
+
+  this.immobile = true;
+  console.log(this.sprite);
+  console.log(this.sprite.frames);
+};
+
+Player.prototype.reset_sprite = function() {
+  this.sprite.speed = 0;
+  this.sprite.frames = undefined;
+  this.sprite.once = undefined;
+  this.sprite.final_frame = undefined;
+  this.sprite.frame_counter = 0;
+
+  this.immobile = false;
+  console.log('resetting to:');
+  console.log(this.sprite);
+  console.log(this.sprite.frames);
 };
 
 Player.prototype.check_status = function() {
@@ -380,7 +426,7 @@ Player.prototype.check_status = function() {
   // check if player state is currently invulnerable
   if (this.invulnerable) {
     // increment the timer
-    collision_timer += 1;
+    collision_timer += 1; // TODO refactor these into the player object to keep things tidy
     // if the timer reaches the invulnerability time limit
     if (collision_timer >= invulnerability_time_limit) {
       console.log('invulnerable time limit reached');
@@ -389,10 +435,9 @@ Player.prototype.check_status = function() {
       // make player vulnerable again
       this.invulnerable = false;
       // this.sprite back to default
-      this.sprite = this.default_sprite_img;
+      this.reset_sprite();
     }
   }
-
 
 };
 
@@ -434,6 +479,28 @@ var space_between_enemies;
 var hard_max_enemies = Math.ceil(cols/2);
 // scale max enemies for easy rows also
 var easy_max_enemies = Math.ceil(cols/3);
+
+/////////////////////////
+// PLAYER INSTANTATION //
+/////////////////////////
+
+// divide number of columns by 2, then round to an even number to get the col
+// of the middle tile, then multiply by the tile width to get actual pixel value
+var center_tile = Math.floor(cols/2) * tile_width;
+
+// settings for the starting position of the player sprite
+var player_start_position = {
+  x: center_tile,
+  // start the player at the bottom of the rows, adjust position to center sprite
+  // feet on the tile 'ground', adjustment is just to get a perfect centering
+  y: (tile_height * rows) - (full_img_tile_height * 2/3),
+  // adding 1 to make the row grid starting at 1
+  row: rows
+};
+
+// instantiate the player character
+var player = new Player(player_start_position, 'boy');
+console.log(player.sprite);
 
 /////////////////////////
 // ENEMY INSTANTIATION //
@@ -484,29 +551,6 @@ for (i=0; i < enemy_rows; i+=1) {
   }
 }
 
-/////////////////////////
-// PLAYER INSTANTATION //
-/////////////////////////
-
-// divide number of columns by 2, then round to an even number to get the col
-// of the middle tile, then multiply by the tile width to get actual pixel value
-var center_tile = Math.floor(cols/2) * tile_width;
-
-// settings for the starting position of the player sprite
-var player_start_position = {
-  x: center_tile,
-  // start the player at the bottom of the rows, adjust position to center sprite
-  // feet on the tile 'ground', adjustment is just to get a perfect centering
-  y: (tile_height * rows) - (full_img_tile_height * 2/3),
-  // adding 1 to make the row grid starting at 1
-  row: rows
-};
-
-// instantiate the player character
-var player = new Player(player_start_position, 'boy');
-console.log(player.sprite);
-console.log(player.default_sprite_img);
-
 //////////////
 // CONTROLS //
 //////////////
@@ -524,7 +568,7 @@ document.addEventListener('keyup', function(e) {
     };
 
     // only run the animation if an allowed key was pressed
-    if (e.keyCode in allowedKeys) {
+    if (e.keyCode in allowedKeys && player.immobile === false) {
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
       // update player's current row position
