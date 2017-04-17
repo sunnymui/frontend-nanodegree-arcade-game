@@ -21,18 +21,31 @@ var Engine = (function(global) {
      * create the canvas element, grab the 2D context for that canvas
      * set the canvas elements height/width and add it to the DOM.
      */
-    var doc = global.document,
-        win = global.window,
-        canvas = doc.createElement('canvas'),
-        ctx = canvas.getContext('2d'),
-        lastTime;
+
+    // init some global setup vars
+    var doc = global.document;
+    var win = global.window;
+    var lastTime;
     // var to store the rendered background img
     var background;
 
+    //////////////////////////////////////
+    // DOM ELEMENT CREATION + INSERTION //
+    //////////////////////////////////////
+
+    // canvas element creation
+
+    var canvas = doc.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    // define canvas width using the number of columns
     canvas.width = cols * tile_width;
-    // multiply by the width to because tile height is only the 'above ground' art
+    // multiply by the width because tile height is only the 'above ground' art
     canvas.height = rows * tile_width;
+    // append the created canvas element to the dom
     doc.body.appendChild(canvas);
+
+    // message popup overlay box creation
+    create_message_popup_overlay();
 
     /* This function serves as the kickoff point for the game loop itself
      * and handles properly calling the update and render methods.
@@ -158,11 +171,7 @@ var Engine = (function(global) {
 
         // render the background using the saved, prerendered background image data
         ctx.putImageData(background, 0, 0);
-        // render the info top bar area
-        //ctx.fillStyle = '#008286';
-        //ctx.fillRect(0,0, canvas.width, 50);
 
-        //renderEntities();
         renderEntities(allEnemies);
         renderEntity(player);
 
@@ -172,18 +181,6 @@ var Engine = (function(global) {
      * tick. Its purpose is to then call the render functions you have defined
      * on your enemy and player entities within app.js
      */
-    // function renderEntities() {
-    //     /* Loop through all of the objects within the allEnemies array and call
-    //      * the render function you have defined.
-    //      */
-    //     allEnemies.forEach(function(enemy) {
-    //         enemy.render();
-    //     });
-    //
-    //     player.render();
-    // }
-
-    //TODO finish this
 
     function renderEntities(list) {
         for(var i=0; i<list.length; i++) {
@@ -334,6 +331,34 @@ var Engine = (function(global) {
         }
       }
 
+    }
+
+    function create_message_popup_overlay() {
+      /*
+      Creates the message box popup overlay shown during triggering events.
+      Examples: you win message and game over message
+      args: na
+      return: na
+      */
+
+      // create message box overlay container div
+      var box_overlay = doc.createElement('div');
+      // set container div class to win_overlay as default
+      box_overlay.className = 'win_overlay';
+      // create an h1 for the text
+      var box_message = doc.createElement('h1');
+      // create the text for the h1
+      var box_text = doc.createTextNode(win_text_content);
+
+      // add the text to the h1 element
+      box_message.appendChild(box_text);
+      // add the h1 to the container div
+      box_overlay.appendChild(box_message);
+      // append the win container div to the page
+      doc.body.appendChild(box_overlay);
+
+      // make the message overlay globally accessible, need ability to toggle classes
+      global.box_message = box_message;
     }
 
     /* Go ahead and load all of the images we know we're going to need to

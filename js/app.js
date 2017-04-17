@@ -18,7 +18,10 @@ var canvas_height = rows * tile_width;
 var bottom_underground = 31;
 // init delta time to make timing equal across different performing browsers
 var dt;
-
+// text to put in the win message displayed when the goal row is reached
+var win_text_content = "You win, let's swim!";
+// text to put in the game over message box
+var game_over_text_content = "Game over dude!";
 
 // playing field boundaries keep the player from leaving the canvas
 // beginning of canvas x coordinate system, it's 1 since tile width is 101 so
@@ -167,22 +170,26 @@ Enemy.prototype.update = function(dt) {
 
     // update the enemy sprite for any animations
     this.sprite.update(dt);
-
-    // animate these moving across the screen, unique to enemy
-    // increment the horizontal position of the sprite, use delta time to keep
-    // movement consistent across devices
-    this.x += this.speed*dt;
-    // check if sprite moved all the way across screen and out of visible canvas
-    if (this.x > canvas_width+50) {
-      // reset position back to the beginning but start off screen
-      this.x = -100;
-    }
+    // move the enemy sprite across the row
+    this.animate_move();
 
 };
 
-// Now write your own player class
-// This class requires an update(), render() and
-// a handleInput() method.
+Enemy.prototype.animate_move = function() {
+  /*
+   animate this enemy moving across the screen
+   increment the horizontal position of the sprite, use delta time to keep
+   movement consistent across devices
+   Args: na
+   Return: na
+  */
+  this.x += this.speed*dt;
+  // check if sprite moved all the way across screen and out of visible canvas
+  if (this.x > canvas_width + 50) {
+    // reset position back to the beginning but start off screen
+    this.x = -100;
+  }
+};
 
 /////////////////////////
 //   PLAYER SUBCLASS   //
@@ -226,6 +233,10 @@ var Player = function(start_position, type) {
 
   // player score tracker
   this.score = 0;
+  // player lives
+  this.lives = 3;
+  // number of games finished without getting hit once
+  this.streak = 0;
   // initialize a move distance tracker for animating player movement
   this.distance_moved = 0;
   // track if player is moving rows
@@ -238,20 +249,28 @@ var Player = function(start_position, type) {
   this.hitbox_bottom_edge = 114;
   // set hitbox top y position upwards from the bottom of the art to the height
   this.hitbox_y = this.hitbox_bottom_edge - this.height;
+  // track if player has been hit during this games
+  this.collision_count = 0;
   // enemy-player collision flag if player hit an enemy
   this.enemy_collided = false;
   // invulnerability flag to disable collisions
   this.invulnerable = false;
   // mobility flag to prevent movement when immobile status is triggered
   this.immobile = false;
+  // flag for if the goal row has been reached
+  this.goal_reached = false;
   // timers for various statuses
   this.timers = {
+    // track # of frames after the goal has been reached
+    goal: 0,
     // track the # of frames after a collision for status condition time limits
     collision: 0,
     // # frames player is invulnerable after collision (typically 60 frames/sec)
     invulnerability_limit: 80,
     // # frames player will be unable to use keyboard movement
-    immobile_limit: 50
+    immobile_limit: 50,
+    // # frames to wait after goal reached before resetting the level
+    goal_limit: 140
   };
 
 };
@@ -269,14 +288,12 @@ Args: dt (number) - the delta time for equalizing speeds across systems
 Return: na
 */
 
-  // NOTE: checking if player reached the goal row is in the animte_player_move
-  // function, only need to check after a complete move instead of every frame
-
   // update player sprite
   this.sprite.update(dt);
   // check for player status conditions
   this.check_status();
-
+  // check if the goal row has been reached
+  this.check_if_goal_reached();
 
 };
 
@@ -320,8 +337,6 @@ Return: none
           this.moving = false;
           // set row value to destination row value, clamp to keep value in screen bounds
           this.row = clamp(this.destination_row, 1, rows);
-          // check if goal row is reached
-          this.check_if_goal_reached();
           // exit animation function
           return;
     }
@@ -396,6 +411,72 @@ Return: n/a but increments the player postion x/y in the outer scope
 
 };
 
+Player.prototype.check_if_goal_reached = function() {
+  /*
+  Checks if the player has reached the goal row and executes the appropriate stuff.
+  */
+  if (this.row == goal_row && !this.goal_reached) {
+    this.goal_reached = true;
+
+    // add points to the player's score
+    this.score += 10;
+
+    // immobilize the player
+    this.immobile = true;
+
+    // change the sprite to goal animation
+
+
+    // show the winner message
+    toggle_win_message();
+  }
+
+  if (this.goal_reached) {
+
+    // increment a goal wait for reset timer
+    this.timers.goal += 1;
+
+    // start the crossfade animation early to let the reset be invisible
+    if(this.timers.goal == this.timers.goal_limit/2) {
+      requestAnimationFrame(crossfade_canvas);
+    }
+
+    // reset game if the wait time limit has elapsed, giving enough animation
+    // time and win message reading time
+    if(this.timers.goal >= this.timers.goal_limit) {
+      if (this.collision_count === 0) {
+        // add to the streak counter
+        this.streak += 1;
+      } else {
+        // reset the collision counter for the next game
+        this.collision_count = 0;
+      }
+      // reset the goal reached timer
+      this.timers.goal = 0;
+      // hide the win message overlay popup
+      toggle_win_message();
+      // i should require user to press any key to continue to next level
+      level_reset();
+    }
+  }
+
+};
+
+Player.prototype.reset = function() {
+  /*
+  Reset the player position and status in prep for a new level.
+  */
+  // reset the player's x and y position to the starting positin
+  this.x = player_start_position.x;
+  this.y = player_start_position.y;
+  // reset the row tracker
+  this.row = player_start_position.row;
+  // reset goal reached flag
+  this.goal_reached = false;
+  // allow player movement again
+  this.immobile = false;
+};
+
 Player.prototype.collided = function(entity) {
   /*
   Checks what player collided with and sets appropriate statuses
@@ -406,43 +487,41 @@ Player.prototype.collided = function(entity) {
 
     // if player collided with an enemy
     if (entity instanceof Enemy) {
+      // increment the current game collsion count
+      this.collision_count += 1;
       // set enemy-player collision flag to true since we player got hit
       this.enemy_collided = true;
       // make player invulnerable temporarily to stop 60 collisions/sec from happening
       this.invulnerable = true;
+      // stop player from being able to move
+      this.immobile = true;
       // change sprite to collision sprite image animation
       this.set_collision_sprite();
     }
 
 };
 
-Player.prototype.check_if_goal_reached = function() {
-  /*
-  */
-  if (this.row == goal_row) {
-    this.score += 10;
-    console.log('winrar! score: ', this.score);
-  }
-
-};
-
 Player.prototype.set_collision_sprite = function() {
+  /*
+  Changes the player sprite to the collision animation sprite
+  */
   this.sprite.speed = 20;
+  // sets the sprites in the map to use as animation frames
   this.sprite.frames = range(0,22);
   this.sprite.once = true;
   this.sprite.final_frame = 22;
-
-  this.immobile = true;
 };
 
 Player.prototype.reset_sprite = function() {
+  /*
+  Resets the player sprite back to the default.
+  */
+  // reset everything back to the default values
   this.sprite.speed = 0;
   this.sprite.frames = undefined;
   this.sprite.once = undefined;
   this.sprite.final_frame = undefined;
   this.sprite.frame_counter = 0;
-
-  this.immobile = false;
 };
 
 Player.prototype.check_status = function() {
@@ -475,8 +554,9 @@ Player.prototype.check_status = function() {
 
     // IMMOBILE
 
-    // check if player is unable to move
-    if (this.timers.collision >= this.timers.immobile_limit) {
+    // if immobile limit is reached, turn off immobility unless in a goal row
+    // then we stay immobile since we'd be immobile during the win animation
+    if (this.timers.collision >= this.timers.immobile_limit && !this.goal_reached) {
       // let player move again
       this.immobile = false;
     }
@@ -489,37 +569,160 @@ Player.prototype.check_status = function() {
 //     INSTANTIATE OBJECTS      //
 //////////////////////////////////
 
-// Now instantiate your objects.
-// Place all enemy objects in an array called allEnemies
-// Place the player object in a variable called player
+// Instantiate everything
+// All enemy objects in an array called allEnemies
+// Player object in a variable called player
+
+// putting the enemy construction loop in a function for ease of resetting the level
+function generate_enemies() {
+  /*
+  Constructs all the different enemies w/ their differing characteristsics
+  into an array of all the enemies on the level.
+  Args: na
+  Return: all the Enemy instances (array)
+  */
+
+  var enemies_array = [];
+  // pixel position adjustments for centering the sprite on the tile
+  var enemy_center_y_adjustment = 30;
+  // figure out number of rows to spawn enemies in
+  // subtract 3 for the water row and the 2 grass rows
+  var enemy_rows = rows - 3;
+
+  // init var to get the last rows which will have higher difficulty enemies
+  var last_rows;
+  // init var for number of enemies to generate in current row
+  var enemies_in_current_row;
+  // init var for the current enemy horizontal and vertical position
+  var current_enemy_x_pos;
+  var current_enemy_y_pos;
+  // init var for enemy speed
+  var current_enemy_speed;
+  // init var for pixel margin between each enemy sprite in the row
+  var space_between_enemies;
+  // scale max allowed enemies with the number of columns
+  var hard_max_enemies = Math.ceil(cols/2);
+  // scale max enemies for easy rows also
+  var easy_max_enemies = Math.ceil(cols/3);
+
+  // enemy spawning loop to fill the allEnemies array
+  for (i=0; i < enemy_rows; i+=1) {
+
+    // find the last few rows because they will have more enemies
+    // ceiling rounding to make more high difficulty rows
+    last_rows = Math.ceil(enemy_rows/3);
+
+    // check if the current row is one of the last for increased difficulty
+    if (i < last_rows) {
+      // set more enemies in current row if one of the last rows
+      enemies_in_current_row = random_num_in_range(2, hard_max_enemies);
+      // higher range for the enemy speed
+      current_enemy_speed = Math.floor(random_num_in_range(150, 200));
+    } else {
+      // less possible enemies for regular rows
+      enemies_in_current_row = random_num_in_range(1, easy_max_enemies);
+      // standard enemy speed 50-180 px per sec
+      current_enemy_speed = Math.floor(random_num_in_range(50, 160));
+    }
+
+    // calculate the enemy y position by getting the current row's pixel height
+    // then subtracting pixels to center the enemy vertically in the row
+    // i+1 to skip spawning enemies in the top goal row
+    current_enemy_y_pos = (i+1) * tile_height - enemy_center_y_adjustment;
+    // calculate evenly distributed pixel space between each enemy sprite
+    space_between_enemies = cols * tile_width / enemies_in_current_row;
+
+    // loop through number of enemies in the current row and set x,y positions for each
+    for (j=0; j < enemies_in_current_row; j+=1) {
+      // enemy x position determined by number of enemies spaced equally on the row
+      // round it down to make a nice round integer for the position value
+      current_enemy_x_pos = Math.floor(j * space_between_enemies);
+
+      // construct the enemies for the current row and push to the allEnemies array
+      enemies_array.push(
+        new Enemy({x: current_enemy_x_pos,
+                   y: current_enemy_y_pos,
+                   // adding 2 to make the row grid start at 1 and skip the first goal row
+                   row: i+2},
+                  current_enemy_speed,
+                  'red bug')
+      );
+    }
+  }
+
+  return enemies_array;
+}
+
+function level_reset() {
+  /*
+  Resets the game level so player is back at the beginning and ready
+  to tackle a new board of enemies.
+  Args: na
+  return: na
+  */
+  // clear the previous enemies array
+  allEnemies.length = 0;
+  // regenerate enemies so that they change from previous level
+  allEnemies = generate_enemies();
+  // move player back to start and reset condition
+  player.reset();
+}
+
+function game_reset() {
+
+}
+
+function toggle_win_message() {
+  /*
+  Toggles the winner message overlay popup.
+  Args: none;
+  Return: none;
+  */
+  // remove the class if it's already set
+  if (box_message.className) {
+    box_message.className = '';
+  } else {
+    // add the class if it's not set
+    box_message.className = 'on';
+  }
+}
+
+function toggle_game_over_message() {
+
+}
+
+
+var animation_fade_counter = 0;
+// 100 iterations
+var animation_fade_increase = Math.PI / 100;
+function crossfade_canvas() {
+  /*
+  Fade's the canvas out then back in again.
+  */
+
+  // set the global alpha transparency from 1 to 0 back to 1ish
+  // using math.sin since it goes up then down then back
+  // multiply by -1 to count downwards
+  // add 0.9 to make the transition actually increment reasonably
+  ctx.globalAlpha = (-1*Math.sin(animation_fade_counter))+0.9;
+  // increase the counter
+  animation_fade_counter += animation_fade_increase;
+
+  // if the global transparency is almost back to full opacity
+  if (ctx.globalAlpha > 0.9) {
+    // reset the counter
+    animation_fade_counter = 0;
+    // set transparency back to full opacity
+    ctx.globalAlpha = 1;
+    // exit the animation
+    return;
+  }
+  requestAnimationFrame(crossfade_canvas);
+}
 
 // counters for incrementing loops
 var i;
 var j;
-
-// array to store all enemy instances
-var allEnemies = [];
-// pixel position adjustments for centering the sprite on the tile
-var enemy_center_y_adjustment = 30;
-// figure out number of rows to spawn enemies in
-// subtract 3 for the water row and the 2 grass rows
-var enemy_rows = rows - 3;
-
-// init var to get the last rows which will have higher difficulty enemies
-var last_rows;
-// init var for number of enemies to generate in current row
-var enemies_in_current_row;
-// init var for the current enemy horizontal and vertical position
-var current_enemy_x_pos;
-var current_enemy_y_pos;
-// init var for enemy speed
-var current_enemy_speed;
-// init var for pixel margin between each enemy sprite in the row
-var space_between_enemies;
-// scale max allowed enemies with the number of columns
-var hard_max_enemies = Math.ceil(cols/2);
-// scale max enemies for easy rows also
-var easy_max_enemies = Math.ceil(cols/3);
 
 /////////////////////////
 // PLAYER INSTANTATION //
@@ -541,56 +744,13 @@ var player_start_position = {
 
 // instantiate the player character
 var player = new Player(player_start_position, 'boy');
-console.log(player.sprite);
 
 /////////////////////////
 // ENEMY INSTANTIATION //
 /////////////////////////
 
-// enemy spawning loop to fill the allEnemies array
-for (i=0; i < enemy_rows; i+=1) {
-
-  // find the last few rows because they will have more enemies
-  // ceiling rounding to make more high difficulty rows
-  last_rows = Math.ceil(enemy_rows/3);
-
-  // check if the current row is one of the last for increased difficulty
-  if (i < last_rows) {
-    // set more enemies in current row if one of the last rows
-    enemies_in_current_row = random_num_in_range(2, hard_max_enemies);
-    // higher range for the enemy speed
-    current_enemy_speed = Math.floor(random_num_in_range(150, 200));
-  } else {
-    // less possible enemies for regular rows
-    enemies_in_current_row = random_num_in_range(1, easy_max_enemies);
-    // standard enemy speed 50-180 px per sec
-    current_enemy_speed = Math.floor(random_num_in_range(50, 160));
-  }
-
-  // calculate the enemy y position by getting the current row's pixel height
-  // then subtracting pixels to center the enemy vertically in the row
-  // i+1 to skip spawning enemies in the top goal row
-  current_enemy_y_pos = (i+1) * tile_height - enemy_center_y_adjustment;
-  // calculate evenly distributed pixel space between each enemy sprite
-  space_between_enemies = cols * tile_width / enemies_in_current_row;
-
-  // loop through number of enemies in the current row and set x,y positions for each
-  for (j=0; j < enemies_in_current_row; j+=1) {
-    // enemy x position determined by number of enemies spaced equally on the row
-    // round it down to make a nice round integer for the position value
-    current_enemy_x_pos = Math.floor(j * space_between_enemies);
-
-    // construct the enemies for the current row and push to the allEnemies array
-    allEnemies.push(
-      new Enemy({x: current_enemy_x_pos,
-                 y: current_enemy_y_pos,
-                 // adding 2 to make the row grid start at 1 and skip the first goal row
-                 row: i+2},
-                current_enemy_speed,
-                'red bug')
-    );
-  }
-}
+// array to store all enemy instances
+var allEnemies = generate_enemies();
 
 //////////////
 // CONTROLS //

@@ -136,17 +136,13 @@
           if(this.speed > 0) {
               var max = this.frames.length;
               var idx = Math.floor(this._index);
-              console.log(this._index);
-              console.log(max);
-              //frame = this.frames[idx % max];
+
               frame = this.frames[this.frame_counter];
               this.frame_counter += 1;
 
-              //if(this.once && idx >= max) {
               if (this.once && this.frame_counter >= max) {
                   this.done = true;
                   frame = this.final_frame;
-                  //return;
               }
           }
           else {
