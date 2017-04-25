@@ -123,6 +123,14 @@
       this.once = once;
       this.final_frame = final_frame;
       this.frame_counter = 0;
+      // if 3rd, 4th parameters added to size array
+      if (size.length > 2) {
+        // use those parameters to scale the drawn image size
+        this.scale = [size[2], size[3]];
+      } else {
+        // default to initial defined size if no scaled size defined
+        this.scale = size;
+      }
     }
 
     Sprite.prototype = {
@@ -161,10 +169,10 @@
           }
 
           ctx.drawImage(Resources.get(this.url),
-                        x, y,
-                        this.size[0], this.size[1],
-                        0, 0,
-                        this.size[0], this.size[1]);
+                        x, y, // where in the map to draw from
+                        this.size[0], this.size[1], // size of the sprite within the sprite map
+                        0, 0, // where to place in the canvas
+                        this.scale[0], this.scale[1]); // size to scale image
       }
     };
 

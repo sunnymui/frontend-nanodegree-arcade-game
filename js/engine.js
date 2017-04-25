@@ -174,6 +174,7 @@ var Engine = (function(global) {
 
         renderEntities(allEnemies);
         renderEntity(player);
+        renderEntity(lives);
 
     }
 
@@ -200,7 +201,9 @@ var Engine = (function(global) {
      * those sorts of things. It's only called once by the init() method.
      */
     function reset() {
-        // noop
+        // show the game options menu
+        console.log('resetting game character and difficulty happens here');
+
     }
 
     function canCollide(entity_array) {
@@ -344,21 +347,29 @@ var Engine = (function(global) {
       // create message box overlay container div
       var box_overlay = doc.createElement('div');
       // set container div class to win_overlay as default
-      box_overlay.className = 'win_overlay';
+      box_overlay.className = popup_overlay_class;
+      // create container for the popup content
+      var box_container = doc.createElement('div');
+      // set box container class to win content as default
+      box_container.className = popup_win_class;
       // create an h1 for the text
       var box_message = doc.createElement('h1');
-      // create the text for the h1
+      // create the default text for the h1
       var box_text = doc.createTextNode(win_text_content);
 
       // add the text to the h1 element
       box_message.appendChild(box_text);
+      // add the content to the popup container
+      box_container.appendChild(box_message);
       // add the h1 to the container div
-      box_overlay.appendChild(box_message);
+      box_overlay.appendChild(box_container);
       // append the win container div to the page
       doc.body.appendChild(box_overlay);
 
-      // make the message overlay globally accessible, need ability to toggle classes
+      // make the message overlay globally accessible
+      // need ability to change classes, content
       global.box_message = box_message;
+      global.box_container = box_container;
     }
 
     /* Go ahead and load all of the images we know we're going to need to
@@ -370,7 +381,7 @@ var Engine = (function(global) {
         'images/water-block.png',
         'images/grass-block.png',
         'images/enemy-bug.png',
-        //'images/char-boy.png',
+        'images/Heart.png',
         'images/char-boy-map.png',
         'images/char-boy-hit.png'
     ]);
@@ -381,6 +392,7 @@ var Engine = (function(global) {
      * from within their app.js files.
      */
     global.ctx = ctx;
-    // // make canvas width and height globally accessible
+    // make reset global to let the game be resettable
+    global.game_reset = reset;
 
 })(this);

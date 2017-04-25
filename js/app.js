@@ -18,12 +18,9 @@ var canvas_height = rows * tile_width;
 var bottom_underground = 31;
 // init delta time to make timing equal across different performing browsers
 var dt;
-// text to put in the win message displayed when the goal row is reached
-var win_text_content = "You win, let's swim!";
-// text to put in the game over message box
-var game_over_text_content = "Game over dude!";
 
 // playing field boundaries keep the player from leaving the canvas
+
 // beginning of canvas x coordinate system, it's 1 since tile width is 101 so
 // can't move to exactly 0 with the sprite
 var player_boundary_left = 1;
@@ -35,13 +32,24 @@ var player_boundary_top = -31;
 // the little undeground part on the bottom row
 var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
 
+// game ui and messages
+
+var popup_overlay_class = 'popup_overlay';
+var popup_win_class = 'win';
+var popup_game_over_class = 'game_over';
+// text to put in the win message displayed when the goal row is reached
+var win_text_content = "You win, let's swim!";
+// text to put in the game over message box
+var game_over_text_content = "Wipeout dude! Game Over!";
+
+
 // Utility functions
 
 function clamp(number, min, max) {
 /*
 Check if a given number falls within the range of the min and max.
 If so, return it, if not return the max or min.
-Args: number to check, the minimum value, the maximum value allowed
+Args: number to check, the minimum value, the maximum value allowed (inclusive for both)
 Return: number falling within the specified range, with numbers below the min
         converted to the min and greater than max converted to the max.
 */
@@ -214,7 +222,6 @@ var Player = function(start_position, type) {
   switch (type) {
     case 'boy':
       this.default_sprite_img = 'images/char-boy-map.png';
-      this.collision_img = 'images/char-boy-hit.png';
       break;
   }
 
@@ -259,6 +266,8 @@ var Player = function(start_position, type) {
   this.immobile = false;
   // flag for if the goal row has been reached
   this.goal_reached = false;
+  // flag if player dies by losing all lives to trigger game over
+  this.game_over = false;
   // timers for various statuses
   this.timers = {
     // track # of frames after the goal has been reached
@@ -269,8 +278,8 @@ var Player = function(start_position, type) {
     invulnerability_limit: 80,
     // # frames player will be unable to use keyboard movement
     immobile_limit: 50,
-    // # frames to wait after goal reached before resetting the level
-    goal_limit: 140
+    // # milliseconds to wait after goal reached before resetting the level
+    goal_limit: 1400
   };
 
 };
@@ -292,8 +301,7 @@ Return: na
   this.sprite.update(dt);
   // check for player status conditions
   this.check_status();
-  // check if the goal row has been reached
-  this.check_if_goal_reached();
+  //  checking for goal row done in player move function to prevent checking every frame
 
 };
 
@@ -337,6 +345,8 @@ Return: none
           this.moving = false;
           // set row value to destination row value, clamp to keep value in screen bounds
           this.row = clamp(this.destination_row, 1, rows);
+          // check if the goal row reached for completed moves
+          this.check_if_goal_reached();
           // exit animation function
           return;
     }
@@ -414,8 +424,14 @@ Return: n/a but increments the player postion x/y in the outer scope
 Player.prototype.check_if_goal_reached = function() {
   /*
   Checks if the player has reached the goal row and executes the appropriate stuff.
+  args: na
+  return: na
   */
+
+  // initial check for goal row reached to only run
+  // these functions once before setting the goal reached flag
   if (this.row == goal_row && !this.goal_reached) {
+
     this.goal_reached = true;
 
     // add points to the player's score
@@ -428,36 +444,34 @@ Player.prototype.check_if_goal_reached = function() {
 
 
     // show the winner message
-    toggle_win_message();
-  }
+    toggle_message(popup_win_class, win_text_content);
 
-  if (this.goal_reached) {
+    // cache reference to player as this for use in the settimeouts
+    var self = this;
 
-    // increment a goal wait for reset timer
-    this.timers.goal += 1;
-
-    // start the crossfade animation early to let the reset be invisible
-    if(this.timers.goal == this.timers.goal_limit/2) {
+    // wait a little before initiating crossfade animation
+    setTimeout(function(){
+      // initiate crossfade animation
       requestAnimationFrame(crossfade_canvas);
-    }
+    }, (this.timers.goal_limit/2));
 
     // reset game if the wait time limit has elapsed, giving enough animation
     // time and win message reading time
-    if(this.timers.goal >= this.timers.goal_limit) {
-      if (this.collision_count === 0) {
+    setTimeout(function(){
+      if (self.collision_count === 0) {
         // add to the streak counter
-        this.streak += 1;
+        self.streak += 1;
       } else {
         // reset the collision counter for the next game
-        this.collision_count = 0;
+        self.collision_count = 0;
       }
       // reset the goal reached timer
-      this.timers.goal = 0;
+      self.timers.goal = 0;
       // hide the win message overlay popup
-      toggle_win_message();
+      toggle_message(popup_win_class, win_text_content);
       // i should require user to press any key to continue to next level
       level_reset();
-    }
+    }, this.timers.goal_limit);
   }
 
 };
@@ -469,12 +483,22 @@ Player.prototype.reset = function() {
   // reset the player's x and y position to the starting positin
   this.x = player_start_position.x;
   this.y = player_start_position.y;
+  // reset player lives
+  this.lives = 3;
   // reset the row tracker
   this.row = player_start_position.row;
   // reset goal reached flag
   this.goal_reached = false;
   // allow player movement again
   this.immobile = false;
+  // reset player invulnerability
+  this.invulnerable = false;
+  // reset game over flag
+  this.game_over = false;
+};
+
+Player.prototype.game_over = function() {
+
 };
 
 Player.prototype.collided = function(entity) {
@@ -489,6 +513,20 @@ Player.prototype.collided = function(entity) {
     if (entity instanceof Enemy) {
       // increment the current game collsion count
       this.collision_count += 1;
+      // decrement the player's health/life counter
+      this.lives = clamp(this.lives - 1, 0, 3);
+      // if no life left
+      console.log(this.lives);
+      if(this.lives === 0) {
+        console.log('game over');
+        // show the game over message
+        toggle_message(popup_game_over_class, game_over_text_content);
+        // set player status to game over
+        this.game_over = true;
+        // go to new game menu
+        // start the new game
+        // temp level reset here before implementing the menu
+      }
       // set enemy-player collision flag to true since we player got hit
       this.enemy_collided = true;
       // make player invulnerable temporarily to stop 60 collisions/sec from happening
@@ -544,8 +582,10 @@ Player.prototype.check_status = function() {
     if (this.timers.collision >= this.timers.invulnerability_limit) {
       // rest the timer
       this.timers.collision = 0;
-      // make player vulnerable again
-      this.invulnerable = false;
+      if (!this.game_over) {
+        // make player vulnerable again
+        this.invulnerable = false;
+      }
       // reset enemy collision flag
       this.enemy_collided = false;
       // this.sprite back to default
@@ -556,7 +596,7 @@ Player.prototype.check_status = function() {
 
     // if immobile limit is reached, turn off immobility unless in a goal row
     // then we stay immobile since we'd be immobile during the win animation
-    if (this.timers.collision >= this.timers.immobile_limit && !this.goal_reached) {
+    if (this.timers.collision >= this.timers.immobile_limit && !this.goal_reached && !this.game_over) {
       // let player move again
       this.immobile = false;
     }
@@ -668,7 +708,27 @@ function level_reset() {
   player.reset();
 }
 
-function game_reset() {
+function toggle_message(container_class, message_text) {
+  /*
+  Toggles the winner message overlay popup.
+  Args: css class for the specific type of message (string)
+  Return: none;
+  */
+  // show class is the container class with the on class added
+  var show_class = container_class + ' on';
+  // set popup text to appropriate message content
+  box_message.textContent = message_text;
+
+  // set popup container class name to win class if not set
+  // and/or toggle off popup visibility by removing on class
+  if (box_container.className !== show_class) {
+    // set container to the win class
+    box_container.className = show_class;
+  // if its a different class or more than just the single class expected
+  } else {
+    // make popup visible by adding the on class/setting it to the appropriate popup
+    box_container.className = container_class;
+  }
 
 }
 
@@ -678,23 +738,28 @@ function toggle_win_message() {
   Args: none;
   Return: none;
   */
-  // remove the class if it's already set
-  if (box_message.className) {
-    box_message.className = '';
+  var win_class = 'win';
+  var show_win_class = 'win on';
+
+  // set popup container class name to win class if not set
+  // and/or toggle off popup visibility by removing on class
+  if (box_container.className !== win_class) {
+    // set container to the win class
+    box_container.className = win_class;
+  // if its a different class or more than just the single class expected
   } else {
-    // add the class if it's not set
-    box_message.className = 'on';
+    // make popup visible by adding the on class/setting it to the appropriate popup
+    box_container.className = show_win_class;
   }
-}
-
-function toggle_game_over_message() {
 
 }
 
 
+// counter for the crossfade animation to work in incrementing 0 to 1 to 0
 var animation_fade_counter = 0;
-// 100 iterations
+// how many steps for the crossfade animation to have is pi divided by the # you want
 var animation_fade_increase = Math.PI / 100;
+
 function crossfade_canvas() {
   /*
   Fade's the canvas out then back in again.
@@ -745,6 +810,30 @@ var player_start_position = {
 // instantiate the player character
 var player = new Player(player_start_position, 'boy');
 
+// create the life counter
+for (i = 0; i < player.lives; i += 1) {
+  console.log(i);
+}
+var lives = new Entity({
+  // image url location for this enemy
+  sprite: new Sprite('images/Heart.png',
+                     [0,0],
+                     [tile_width,
+                      full_img_tile_height,
+                      tile_width/4,
+                      full_img_tile_height/4]),
+  position: {
+    x: 10,
+    y: 0
+  },
+  // size of hitbox for collision detection
+  size: {
+    width: 100,
+    height: 50
+  }
+});
+
+
 /////////////////////////
 // ENEMY INSTANTIATION //
 /////////////////////////
@@ -767,6 +856,21 @@ document.addEventListener('keyup', function(e) {
         39: 'right',
         40: 'down'
     };
+
+    // if any key was pressed while game over
+    if(player.game_over && e) {
+        // toggle the message popup off
+        toggle_message(popup_game_over_class, game_over_text_content);
+        // reset the level tempororary until actual reset function
+        // transition the resets
+        requestAnimationFrame(crossfade_canvas);
+        level_reset();
+        // reset player status
+        player.reset();
+        // reset the game back to the new game menu
+        //reset();
+
+    }
 
     // only run the animation if an allowed key was pressed
     if (e.keyCode in allowedKeys && player.immobile === false) {

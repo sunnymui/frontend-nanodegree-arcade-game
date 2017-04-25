@@ -5,7 +5,7 @@ body {
 
 /* Goal reached message styling */
 
-.win_overlay {
+.popup_overlay {
     /* center the content vertically and horizontally */
     display: flex;
     align-items: center;
@@ -16,15 +16,13 @@ body {
     /* fill the screen */
     width: 100%;
     min-height: 100%;
+
 }
 
-.win_overlay h1 {
+.popup_overlay div {
     max-width: 45%;
     padding: 2em;
     margin-top: -300%;
-    background: #d86c32;
-    color: #fff;
-    font-size: 3em;
     border: 1px solid #000;
     text-shadow: 1px 1px #000;
     box-shadow: 0px 0px 100px #000;
@@ -32,6 +30,18 @@ body {
     text-transform: uppercase;
 }
 
-.win_overlay h1.on {
+.win {
+    background: #d86c32;
+    color: #fff;
+    font-size: 2em;
+}
+
+.game_over {
+    background: #fff;
+    color: #ae1414;
+    font-size: 1.5em;
+}
+
+.popup_overlay .on {
     margin-top: 0%;
 }
