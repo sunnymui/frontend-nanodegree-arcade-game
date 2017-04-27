@@ -174,7 +174,7 @@ var Engine = (function(global) {
 
         renderEntities(allEnemies);
         renderEntity(player);
-        renderEntity(lives);
+        renderEntities(lives);
 
     }
 
@@ -382,8 +382,8 @@ var Engine = (function(global) {
         'images/grass-block.png',
         'images/enemy-bug.png',
         'images/Heart.png',
-        'images/char-boy-map.png',
-        'images/char-boy-hit.png'
+        'images/char-boy-map.png'
+        //'images/char-boy-hit.png'
     ]);
     Resources.onReady(init);
 

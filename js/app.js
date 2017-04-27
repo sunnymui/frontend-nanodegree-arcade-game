@@ -275,9 +275,9 @@ var Player = function(start_position, type) {
     // track the # of frames after a collision for status condition time limits
     collision: 0,
     // # frames player is invulnerable after collision (typically 60 frames/sec)
-    invulnerability_limit: 80,
+    invulnerability_limit: 90,
     // # frames player will be unable to use keyboard movement
-    immobile_limit: 50,
+    immobile_limit: 70,
     // # milliseconds to wait after goal reached before resetting the level
     goal_limit: 1400
   };
@@ -430,48 +430,46 @@ Player.prototype.check_if_goal_reached = function() {
 
   // initial check for goal row reached to only run
   // these functions once before setting the goal reached flag
+  // just in case user tries to move up again while in the goal row
   if (this.row == goal_row && !this.goal_reached) {
+    // cache reference to this for use in setTimeout
+    var self = this;
 
+    // toggle goal reached flag
     this.goal_reached = true;
-
     // add points to the player's score
     this.score += 10;
-
     // immobilize the player
     this.immobile = true;
-
+    // reset sprite in it's in the collision animation
+    this.reset_sprite();
     // change the sprite to goal animation
-
-
+    this.set_win_sprite();
     // show the winner message
     toggle_message(popup_win_class, win_text_content);
 
-    // cache reference to player as this for use in the settimeouts
-    var self = this;
+    // if the player had a perfect game of not getting hit once
+    if (this.collision_count === 0) {
+      // add to the streak counter
+      this.streak += 1;
+    } else {
+      // reset the collision counter for the next game if they got hit this round
+      this.collision_count = 0;
+    }
 
     // wait a little before initiating crossfade animation
     setTimeout(function(){
       // initiate crossfade animation
-      requestAnimationFrame(crossfade_canvas);
-    }, (this.timers.goal_limit/2));
-
-    // reset game if the wait time limit has elapsed, giving enough animation
-    // time and win message reading time
-    setTimeout(function(){
-      if (self.collision_count === 0) {
-        // add to the streak counter
-        self.streak += 1;
-      } else {
-        // reset the collision counter for the next game
-        self.collision_count = 0;
-      }
-      // reset the goal reached timer
-      self.timers.goal = 0;
+      requestAnimationFrame(crossfade_canvas_and_reset);
       // hide the win message overlay popup
       toggle_message(popup_win_class, win_text_content);
+
       // i should require user to press any key to continue to next level
-      level_reset();
-    }, this.timers.goal_limit);
+      // reset goal reached flag
+      self.goal_reached = false;
+
+    }, (self.timers.goal_limit*2));
+
   }
 
 };
@@ -487,18 +485,10 @@ Player.prototype.reset = function() {
   this.lives = 3;
   // reset the row tracker
   this.row = player_start_position.row;
-  // reset goal reached flag
-  this.goal_reached = false;
-  // allow player movement again
-  this.immobile = false;
   // reset player invulnerability
   this.invulnerable = false;
-  // reset game over flag
-  this.game_over = false;
-};
-
-Player.prototype.game_over = function() {
-
+  // reset player sprite
+  player.reset_sprite();
 };
 
 Player.prototype.collided = function(entity) {
@@ -517,12 +507,19 @@ Player.prototype.collided = function(entity) {
       this.lives = clamp(this.lives - 1, 0, 3);
       // if no life left
       console.log(this.lives);
+      // trigger game over if player got hit with no lives left
       if(this.lives === 0) {
-        console.log('game over');
+        // show the death animation
+        this.set_game_over_sprite();
         // show the game over message
         toggle_message(popup_game_over_class, game_over_text_content);
         // set player status to game over
         this.game_over = true;
+        // freeze the player and prevent further collisions
+        this.invulnerable = true;
+        this.immobile = true;
+        // prevent typical collision behavior by exiting function
+        return;
         // go to new game menu
         // start the new game
         // temp level reset here before implementing the menu
@@ -543,9 +540,36 @@ Player.prototype.set_collision_sprite = function() {
   /*
   Changes the player sprite to the collision animation sprite
   */
-  this.sprite.speed = 20;
+  // set speed of animation, higher numbers = slower animation
+  this.sprite.speed = 1;
   // sets the sprites in the map to use as animation frames
   this.sprite.frames = range(0,22);
+  this.sprite.once = true;
+  this.sprite.final_frame = 22;
+};
+
+Player.prototype.set_win_sprite = function () {
+  /*
+  Changes the player sprite to the victory animation sprite
+  */
+  this.sprite.speed = 4;
+  // move to the next row in the sprite map
+  this.sprite.pos = [0,171];
+  // sets the sprites in the map to use as animation frames
+  this.sprite.frames = range(0,7);
+  this.sprite.once = true;
+  this.sprite.final_frame = 7;
+};
+
+Player.prototype.set_game_over_sprite = function () {
+  /*
+  Changes the player sprite to the game over animation sprite
+  */
+  this.sprite.speed = 2;
+  // move to the next row in the sprite map
+  this.sprite.pos = [0,171];
+  // sets the sprites in the map to use as animation frames
+  this.sprite.frames = range(8,22);
   this.sprite.once = true;
   this.sprite.final_frame = 22;
 };
@@ -555,6 +579,7 @@ Player.prototype.reset_sprite = function() {
   Resets the player sprite back to the default.
   */
   // reset everything back to the default values
+  this.sprite.pos = [0,0];
   this.sprite.speed = 0;
   this.sprite.frames = undefined;
   this.sprite.once = undefined;
@@ -580,22 +605,25 @@ Player.prototype.check_status = function() {
 
     // if the timer reaches the invulnerability time limit
     if (this.timers.collision >= this.timers.invulnerability_limit) {
-      // rest the timer
+      // reset the timer
       this.timers.collision = 0;
-      if (!this.game_over) {
-        // make player vulnerable again
-        this.invulnerable = false;
-      }
+      // make player vulnerable again
+      this.invulnerable = false;
       // reset enemy collision flag
       this.enemy_collided = false;
-      // this.sprite back to default
-      this.reset_sprite();
+      // don't reset the sprite if goal reached since goal animation will play
+      if (!this.goal_reached) {
+        // this.sprite back to default
+        this.reset_sprite();
+      }
+
     }
 
     // IMMOBILE
 
     // if immobile limit is reached, turn off immobility unless in a goal row
     // then we stay immobile since we'd be immobile during the win animation
+    // or if game over
     if (this.timers.collision >= this.timers.immobile_limit && !this.goal_reached && !this.game_over) {
       // let player move again
       this.immobile = false;
@@ -732,37 +760,15 @@ function toggle_message(container_class, message_text) {
 
 }
 
-function toggle_win_message() {
-  /*
-  Toggles the winner message overlay popup.
-  Args: none;
-  Return: none;
-  */
-  var win_class = 'win';
-  var show_win_class = 'win on';
-
-  // set popup container class name to win class if not set
-  // and/or toggle off popup visibility by removing on class
-  if (box_container.className !== win_class) {
-    // set container to the win class
-    box_container.className = win_class;
-  // if its a different class or more than just the single class expected
-  } else {
-    // make popup visible by adding the on class/setting it to the appropriate popup
-    box_container.className = show_win_class;
-  }
-
-}
-
-
 // counter for the crossfade animation to work in incrementing 0 to 1 to 0
 var animation_fade_counter = 0;
 // how many steps for the crossfade animation to have is pi divided by the # you want
+// determines how long the animation lasts
 var animation_fade_increase = Math.PI / 100;
 
-function crossfade_canvas() {
+function crossfade_canvas_and_reset() {
   /*
-  Fade's the canvas out then back in again.
+  Fade's the canvas out then back in again. Resets stuff at certain points
   */
 
   // set the global alpha transparency from 1 to 0 back to 1ish
@@ -773,16 +779,24 @@ function crossfade_canvas() {
   // increase the counter
   animation_fade_counter += animation_fade_increase;
 
+  // do the resets when stuff is invisible
+  if (ctx.globalAlpha < 0.01) {
+    // reset the level
+    level_reset();
+  }
+
   // if the global transparency is almost back to full opacity
-  if (ctx.globalAlpha > 0.9) {
+  if (ctx.globalAlpha > 0.99) {
     // reset the counter
     animation_fade_counter = 0;
     // set transparency back to full opacity
     ctx.globalAlpha = 1;
+    // restore player mobility
+    player.immobile = false;
     // exit the animation
     return;
   }
-  requestAnimationFrame(crossfade_canvas);
+  requestAnimationFrame(crossfade_canvas_and_reset);
 }
 
 // counters for incrementing loops
@@ -810,29 +824,34 @@ var player_start_position = {
 // instantiate the player character
 var player = new Player(player_start_position, 'boy');
 
+var lives = [];
 // create the life counter
 for (i = 0; i < player.lives; i += 1) {
-  console.log(i);
+  lives.push(
+    new Entity({
+      // image url location for this enemy
+      // TODO gonna need a sprite map of an empty heart and full heart
+      sprite: new Sprite('images/Heart.png',
+                         [0,0],
+                         // size settings array
+                         [tile_width,
+                          full_img_tile_height,
+                          // scaled sprite size settings
+                          tile_width/4,
+                          full_img_tile_height/4]),
+      position: {
+        // position them spaced apart in a row
+        x: 10 + i*25,
+        y: 0
+      },
+      // size of hitbox for collision detection
+      size: {
+        width: 100,
+        height: 50
+      }
+    })
+  );
 }
-var lives = new Entity({
-  // image url location for this enemy
-  sprite: new Sprite('images/Heart.png',
-                     [0,0],
-                     [tile_width,
-                      full_img_tile_height,
-                      tile_width/4,
-                      full_img_tile_height/4]),
-  position: {
-    x: 10,
-    y: 0
-  },
-  // size of hitbox for collision detection
-  size: {
-    width: 100,
-    height: 50
-  }
-});
-
 
 /////////////////////////
 // ENEMY INSTANTIATION //
@@ -851,6 +870,7 @@ var key_pressed;
 // Player.handleInput() method. You don't need to modify this.
 document.addEventListener('keyup', function(e) {
     var allowedKeys = {
+        13: 'enter',
         37: 'left',
         38: 'up',
         39: 'right',
@@ -858,24 +878,30 @@ document.addEventListener('keyup', function(e) {
     };
 
     // if any key was pressed while game over
-    if(player.game_over && e) {
+    if(player.game_over && allowedKeys[e.keyCode] === 'enter') {
+
+        // reset game over flag
+        player.game_over = false;
+        // reset streak counter
+        player.streak = 0;
+        // reset the score
+        player.score = 0;
+        // transition the resets
+        requestAnimationFrame(crossfade_canvas_and_reset);
         // toggle the message popup off
         toggle_message(popup_game_over_class, game_over_text_content);
-        // reset the level tempororary until actual reset function
-        // transition the resets
-        requestAnimationFrame(crossfade_canvas);
-        level_reset();
-        // reset player status
-        player.reset();
-        // reset the game back to the new game menu
-        //reset();
-
+        // let stuff fade out a bit before resetting the level
+        setTimeout(function() {
+          // reset the game back to the new game menu
+          //reset();
+        }, (player.timers.goal_limit/2));
     }
 
     // only run the animation if an allowed key was pressed
     if (e.keyCode in allowedKeys && player.immobile === false) {
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
+
       // update player's current row position
 
       // call the player movement animation which handles player movement

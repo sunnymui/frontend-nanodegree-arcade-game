@@ -116,13 +116,15 @@
       this.pos = pos;
       this.size = size;
       this.speed = typeof speed === 'number' ? speed : 0;
-      this.frames = frames;
+      this.frames = frames || [0];
+      this.current_frame = this.frames[0];
       this._index = 0;
       this.url = url;
       this.dir = dir || 'horizontal';
       this.once = once;
       this.final_frame = final_frame;
       this.frame_counter = 0;
+      this.speed_count = 0;
       // if 3rd, 4th parameters added to size array
       if (size.length > 2) {
         // use those parameters to scale the drawn image size
@@ -145,8 +147,24 @@
               var max = this.frames.length;
               var idx = Math.floor(this._index);
 
-              frame = this.frames[this.frame_counter];
-              this.frame_counter += 1;
+              // speed determines how fast or slow the animation plays
+              // if the counter for speed reaches speed value then allow the
+              // next frame to be played. Thus higher speed value = slower animation
+              if (this.speed_count >= this.speed) {
+                // set the frame
+                frame = this.frames[this.frame_counter];
+                // set the current frame for in rendering the same frame while waiting
+                this.current_frame = frame;
+                // reset the speed counter
+                this.speed_count = 0;
+                // increment to the next frame
+                this.frame_counter += 1;
+              } else {
+                // increment the speed counter
+                this.speed_count += 1;
+                // keep rendering the same frame
+                frame = this.current_frame;
+              }
 
               if (this.once && this.frame_counter >= max) {
                   this.done = true;
