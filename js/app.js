@@ -37,11 +37,20 @@ var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
 var popup_overlay_class = 'popup_overlay';
 var popup_win_class = 'win';
 var popup_game_over_class = 'game_over';
+var popup_level_class = 'level';
 // text to put in the win message displayed when the goal row is reached
 var win_text_content = "You win, let's swim!";
 // text to put in the game over message box
-var game_over_text_content = "Wipeout dude! Game Over!";
+var game_over_text_content = 'Wipeout! Game Over Dude!';
+var instruction_text_content = 'Press ENTER to Continue >';
 
+// score text
+var score_label = 'SCORE ';
+var score_text = '0';
+
+// level text
+var level_label = 'LEVEL ';
+var level_text = '1';
 
 // Utility functions
 
@@ -96,10 +105,29 @@ Args: settings object containing data for a particular entity
 Return: constructor returned entity (object)
 */
   this.sprite = settings.sprite;
-  this.x = settings.position.x;
-  this.y = settings.position.y;
-  this.width = settings.size.width;
-  this.height = settings.size.height;
+  // this.sprite = settings.sprite || undefined;
+  this.x = settings.position.x || 0;
+  this.y = settings.position.y || 0;
+  // set size for collision detection functions if defined
+  if (typeof settings.size !== 'undefined') {
+    this.width = settings.size.width;
+    this.height = settings.size.height;
+  }
+  // settings for text rendering if this is a text entity
+  if (typeof this.sprite === 'undefined') {
+    // actual text content of the text
+    this.text = settings.text || '';
+    // whether it should have a stroke or not
+    this.stroke_text = settings.stroke_text || false;
+    // font and font size
+    this.font = settings.font || 'bold 24px Arial';
+    // font color
+    this.font_color = settings.font_color || 'black';
+    // text stroke color
+    this.stroke_color = settings.stroke_color || 'white';
+    // text alignment
+    this.text_align = settings.text_align || 'start';
+  }
   // sets the horizontal position of the hitbox within the sprite img,
   // basically how far in px from the left edge of the image to put the hitbox
   this.hitbox_x = Math.floor(tile_width/2) - this.width/2;
@@ -110,10 +138,29 @@ Entity.prototype.render = function() {
   ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 };
 
+Entity.prototype.render_text = function() {
+  ctx.fillStyle = this.font_color;
+  ctx.font = this.font;
+  ctx.textAlign = this.text_align;
+  // if this is stroke text use the stroketext drawing functions
+  if (this.stroke_text) {
+    ctx.strokeStyle = this.stroke_color;
+    // do the actual drawing
+    ctx.fillText(this.text, this.x, this.y);
+    ctx.strokeText(this.text, this.x, this.y);
+  } else {
+    // draw regular text
+    ctx.fillText(this.text, this.x, this.y);
+  }
+};
+
 Entity.prototype.update = function(dt) {
-  // You should multiply any movement by the dt parameter
-  // which will ensure the game runs at the same speed for
-  // all computers.
+};
+
+//TODO do i really need this function?
+Entity.prototype.change_sprite = function(settings) {
+  this.sprite.pos = settings.pos;
+
 };
 
 /////////////////////////
@@ -244,6 +291,8 @@ var Player = function(start_position, type) {
   this.lives = 3;
   // number of games finished without getting hit once
   this.streak = 0;
+  // current level player is on
+  this.current_level = 1;
   // initialize a move distance tracker for animating player movement
   this.distance_moved = 0;
   // track if player is moving rows
@@ -439,6 +488,10 @@ Player.prototype.check_if_goal_reached = function() {
     this.goal_reached = true;
     // add points to the player's score
     this.score += 10;
+    // update the game score tracker
+    game_ui_score.text = score_label + this.score;
+    // increment the current level
+    this.current_level += 1;
     // immobilize the player
     this.immobile = true;
     // reset sprite in it's in the collision animation
@@ -457,38 +510,41 @@ Player.prototype.check_if_goal_reached = function() {
       this.collision_count = 0;
     }
 
-    // wait a little before initiating crossfade animation
-    setTimeout(function(){
-      // initiate crossfade animation
-      requestAnimationFrame(crossfade_canvas_and_reset);
-      // hide the win message overlay popup
-      toggle_message(popup_win_class, win_text_content);
-
-      // i should require user to press any key to continue to next level
-      // reset goal reached flag
-      self.goal_reached = false;
-
-    }, (self.timers.goal_limit*2));
-
   }
 
 };
 
-Player.prototype.reset = function() {
+Player.prototype.reset = function(game_over) {
   /*
   Reset the player position and status in prep for a new level.
+  Args: whether this is a game over player reset, or just regular reset
+        (boolean), default is falsey (undefined) aka regular reset.
+  Return: na
   */
   // reset the player's x and y position to the starting positin
   this.x = player_start_position.x;
   this.y = player_start_position.y;
-  // reset player lives
-  this.lives = 3;
   // reset the row tracker
   this.row = player_start_position.row;
   // reset player invulnerability
   this.invulnerable = false;
+  // reset goal reached flag
+  player.goal_reached = false;
   // reset player sprite
-  player.reset_sprite();
+  this.reset_sprite();
+  // resets additional stuff if it's a game over player reset
+  if (this.game_over) {
+    // reset player lives
+    this.lives = 3;
+    // reset the current level
+    this.current_level = 1;
+    // reset game over flag
+    this.game_over = false;
+    // reset streak counter
+    this.streak = 0;
+    // reset the score
+    this.score = 0;
+  }
 };
 
 Player.prototype.collided = function(entity) {
@@ -505,8 +561,10 @@ Player.prototype.collided = function(entity) {
       this.collision_count += 1;
       // decrement the player's health/life counter
       this.lives = clamp(this.lives - 1, 0, 3);
-      // if no life left
-      console.log(this.lives);
+      // change the the lives sprite map to display a lost life
+      // selects the last life sprite and changes the sprite map pos
+      // to show the empty life sprite
+      lives[this.lives].sprite.pos = [tile_width, 0];
       // trigger game over if player got hit with no lives left
       if(this.lives === 0) {
         // show the death animation
@@ -565,7 +623,7 @@ Player.prototype.set_game_over_sprite = function () {
   /*
   Changes the player sprite to the game over animation sprite
   */
-  this.sprite.speed = 2;
+  this.sprite.speed = 3;
   // move to the next row in the sprite map
   this.sprite.pos = [0,171];
   // sets the sprites in the map to use as animation frames
@@ -636,6 +694,20 @@ Player.prototype.check_status = function() {
 //////////////////////////////////
 //     INSTANTIATE OBJECTS      //
 //////////////////////////////////
+
+// some globalish vars for instantiation functions
+
+// counters for incrementing loops
+var i;
+var j;
+// counter for the crossfade animation to work in incrementing 0 to 1 to 0
+var animation_fade_counter = 0;
+// how many steps for the crossfade animation to have is pi
+// divided by the # you want, determines how long the animation lasts
+// and how many frames the animation has
+var animation_fade_increase = Math.PI / 100;
+// flag to track if transition animation is running
+var animation_running = false;
 
 // Instantiate everything
 // All enemy objects in an array called allEnemies
@@ -732,20 +804,44 @@ function level_reset() {
   allEnemies.length = 0;
   // regenerate enemies so that they change from previous level
   allEnemies = generate_enemies();
-  // move player back to start and reset condition
-  player.reset();
+  // if game over reset the lives sprites too
+  if(player.game_over) {
+    // reset player position and stats, but also reset game over stats
+    player.reset(true);
+    // loop through the lives array to reset the sprites
+    for (i=0; i < lives.length; i+=1) {
+      // reset back to the full life sprite in the map
+      lives[i].sprite.pos = [0, 0];
+    }
+  } else {
+    // move player back to start and reset condition
+    player.reset();
+  }
+  // update the rendered level text displayed
+  game_ui_level.text = level_label + player.current_level;
+  // update the rendered score text displayed
+  game_ui_score.text = score_label + player.score;
+
 }
 
-function toggle_message(container_class, message_text) {
+function toggle_message(container_class, message_text, no_subtext) {
   /*
   Toggles the winner message overlay popup.
   Args: css class for the specific type of message (string)
+        text string to put in the main message text (string),
+        whether the standard subtext should be included (boolean)
   Return: none;
   */
   // show class is the container class with the on class added
   var show_class = container_class + ' on';
   // set popup text to appropriate message content
   box_message.textContent = message_text;
+  // if no subtext paramter is true clear out the instruction text
+  if (no_subtext) {
+    sub_message.textContent = '';
+  } else {
+    sub_message.textContent = instruction_text_content;
+  }
 
   // set popup container class name to win class if not set
   // and/or toggle off popup visibility by removing on class
@@ -760,15 +856,11 @@ function toggle_message(container_class, message_text) {
 
 }
 
-// counter for the crossfade animation to work in incrementing 0 to 1 to 0
-var animation_fade_counter = 0;
-// how many steps for the crossfade animation to have is pi divided by the # you want
-// determines how long the animation lasts
-var animation_fade_increase = Math.PI / 100;
-
 function crossfade_canvas_and_reset() {
   /*
   Fade's the canvas out then back in again. Resets stuff at certain points
+  Args: na
+  Return: na
   */
 
   // set the global alpha transparency from 1 to 0 back to 1ish
@@ -793,15 +885,19 @@ function crossfade_canvas_and_reset() {
     ctx.globalAlpha = 1;
     // restore player mobility
     player.immobile = false;
+    // show the current level message
+    toggle_message('level', game_ui_level.text, true);
+    setTimeout(function() {
+      toggle_message('level', game_ui_level.text, true);
+    }, 2000);
+    animation_running = false;
     // exit the animation
     return;
   }
+
+  // run recursively
   requestAnimationFrame(crossfade_canvas_and_reset);
 }
-
-// counters for incrementing loops
-var i;
-var j;
 
 /////////////////////////
 // PLAYER INSTANTATION //
@@ -824,14 +920,20 @@ var player_start_position = {
 // instantiate the player character
 var player = new Player(player_start_position, 'boy');
 
+
+/////////////////////////
+//   UI INSTANTATION   //
+/////////////////////////
+
+// init array for each life heart entity
 var lives = [];
+
 // create the life counter
 for (i = 0; i < player.lives; i += 1) {
   lives.push(
     new Entity({
-      // image url location for this enemy
-      // TODO gonna need a sprite map of an empty heart and full heart
-      sprite: new Sprite('images/Heart.png',
+      // create the sprite for the lives graphic
+      sprite: new Sprite('images/Heart-map.png',
                          [0,0],
                          // size settings array
                          [tile_width,
@@ -842,16 +944,48 @@ for (i = 0; i < player.lives; i += 1) {
       position: {
         // position them spaced apart in a row
         x: 10 + i*25,
+        // top of the canvas
         y: 0
       },
-      // size of hitbox for collision detection
+      // no hitbox for collision detection needed
       size: {
-        width: 100,
-        height: 50
+        width: 0,
+        height: 0
       }
     })
   );
 }
+
+// create game score tracker
+
+var game_ui_score = new Entity({
+    position: {
+      // position them spaced apart in a row
+      x: canvas_width/2,
+      // top of the canvas
+      y: 17
+    },
+    //is_text: true,
+    text: score_label + score_text,
+    font: 'bold 27px Arial',
+    stroke_text: true,
+    text_align: 'right'
+});
+
+// create the level tracker
+
+var game_ui_level = new Entity({
+  position: {
+    // position them spaced apart in a row
+    x: 60,
+    // top of the canvas
+    y: 17
+  },
+  //is_text: true,
+  text: level_label + level_text,
+  font: 'bold 27px Arial',
+  font_color: 'rgba(131, 131, 131, 0.54)'
+});
 
 /////////////////////////
 // ENEMY INSTANTIATION //
@@ -859,6 +993,15 @@ for (i = 0; i < player.lives; i += 1) {
 
 // array to store all enemy instances
 var allEnemies = generate_enemies();
+
+// show a level indicator before first level
+window.addEventListener("load", function(event) {
+  toggle_message(popup_level_class, game_ui_level.text, true);
+  setTimeout(function() {
+    toggle_message(popup_level_class, game_ui_level.text, true);
+  }, 2000);
+});
+
 
 //////////////
 // CONTROLS //
@@ -869,36 +1012,40 @@ var key_pressed;
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
 document.addEventListener('keyup', function(e) {
+    var enter_key = 13;
     var allowedKeys = {
-        13: 'enter',
         37: 'left',
         38: 'up',
         39: 'right',
         40: 'down'
     };
 
-    // if any key was pressed while game over
-    if(player.game_over && allowedKeys[e.keyCode] === 'enter') {
+    // if goal has been reached, enter key triggers level reset
+    if(player.goal_reached && e.keyCode === enter_key && !animation_running) {
 
-        // reset game over flag
-        player.game_over = false;
-        // reset streak counter
-        player.streak = 0;
-        // reset the score
-        player.score = 0;
-        // transition the resets
+      animation_running = true;
+      // initiate crossfade animation
+      requestAnimationFrame(crossfade_canvas_and_reset);
+      // hide the win message overlay popup
+      toggle_message(popup_win_class, win_text_content);
+
+    }
+
+    // if game over, enter key triggers the level reset
+    if(player.game_over && e.keyCode === enter_key && !animation_running) {
+
+        animation_running = true;
+        // run transition animation and reset the level
         requestAnimationFrame(crossfade_canvas_and_reset);
         // toggle the message popup off
         toggle_message(popup_game_over_class, game_over_text_content);
-        // let stuff fade out a bit before resetting the level
-        setTimeout(function() {
-          // reset the game back to the new game menu
-          //reset();
-        }, (player.timers.goal_limit/2));
+
     }
 
     // only run the animation if an allowed key was pressed
-    if (e.keyCode in allowedKeys && player.immobile === false) {
+    // disallow keypress being passed to movement if immobile
+    // or if already in a movement action
+    if (e.keyCode in allowedKeys && !player.immobile && !player.moving) {
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
 

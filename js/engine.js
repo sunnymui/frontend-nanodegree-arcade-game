@@ -33,6 +33,15 @@ var Engine = (function(global) {
     // DOM ELEMENT CREATION + INSERTION //
     //////////////////////////////////////
 
+    // main content container creation
+
+    // create the main container element
+    var main_container = doc.createElement('div');
+    // add class of main
+    main_container.className = 'main';
+    // append to the body in the dom
+    doc.body.appendChild(main_container);
+
     // canvas element creation
 
     var canvas = doc.createElement('canvas');
@@ -42,7 +51,7 @@ var Engine = (function(global) {
     // multiply by the width because tile height is only the 'above ground' art
     canvas.height = rows * tile_width;
     // append the created canvas element to the dom
-    doc.body.appendChild(canvas);
+    main_container.appendChild(canvas);
 
     // message popup overlay box creation
     create_message_popup_overlay();
@@ -172,9 +181,14 @@ var Engine = (function(global) {
         // render the background using the saved, prerendered background image data
         ctx.putImageData(background, 0, 0);
 
+        // render the game ui
+        renderEntities(lives);
+        renderEntity(game_ui_score);
+        renderEntity(game_ui_level);
+
+        //render the game interactive entities
         renderEntities(allEnemies);
         renderEntity(player);
-        renderEntities(lives);
 
     }
 
@@ -190,9 +204,19 @@ var Engine = (function(global) {
     }
 
     function renderEntity(entity) {
+        // save the context to preserve the positioning before translating the ctx
         ctx.save();
+        // move to the entity position
         ctx.translate(entity.x, entity.y);
-        entity.sprite.render(ctx);
+        // if entity is text
+        if (!entity.sprite) {
+          // render the text at the current position
+          entity.render_text();
+        } else {
+          // render the sprite at the current position
+          entity.sprite.render(ctx);
+        }
+        // restore the context back to the regular positioning coordinates
         ctx.restore();
     }
 
@@ -354,21 +378,30 @@ var Engine = (function(global) {
       box_container.className = popup_win_class;
       // create an h1 for the text
       var box_message = doc.createElement('h1');
+      // create an h3 for the subtitle message
+      var sub_message = doc.createElement('h3');
       // create the default text for the h1
       var box_text = doc.createTextNode(win_text_content);
+      // create text content for the subttile message
+      var sub_text = doc.createTextNode(instruction_text_content);
 
       // add the text to the h1 element
       box_message.appendChild(box_text);
-      // add the content to the popup container
+      // add subtext to the subtitle h3 element
+      sub_message.appendChild(sub_text);
+      // add the h1 content to the popup container
       box_container.appendChild(box_message);
-      // add the h1 to the container div
+      // add the subheading to the popup container
+      box_container.appendChild(sub_message);
+      // add the popup div to the larger overlay container
       box_overlay.appendChild(box_container);
       // append the win container div to the page
-      doc.body.appendChild(box_overlay);
+      main_container.appendChild(box_overlay);
 
       // make the message overlay globally accessible
       // need ability to change classes, content
       global.box_message = box_message;
+      global.sub_message = sub_message;
       global.box_container = box_container;
     }
 
@@ -382,6 +415,7 @@ var Engine = (function(global) {
         'images/grass-block.png',
         'images/enemy-bug.png',
         'images/Heart.png',
+        'images/Heart-map.png',
         'images/char-boy-map.png'
         //'images/char-boy-hit.png'
     ]);
