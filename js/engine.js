@@ -69,12 +69,14 @@ var Engine = (function(global) {
         var now = Date.now();
             dt = (now - lastTime) / 1000.0;
 
+        // only run if not currently paused
+        if (!paused){
         /* Call our update/render functions, pass along the time delta to
          * our update function since it may be used for smooth animation.
          */
-
-        update(dt);
-        render();
+          update(dt);
+          render();
+        }
 
         /* Set our lastTime variable which is used to determine the time delta
          * for the next time this function is called.
@@ -398,11 +400,40 @@ var Engine = (function(global) {
       // append the win container div to the page
       main_container.appendChild(box_overlay);
 
+      // create a secondary message container
+
+      // create container for the secondary popup content
+      var secondary_box_container = doc.createElement('div');
+      // set box container class to win content as default
+      secondary_box_container.className = secondary_popup_class;
+      // create an h1 for the text
+      var secondary_box_message = doc.createElement('h1');
+      // create an h3 for the subtitle message
+      var secondary_sub_message = doc.createElement('h3');
+      // create the default text for the h1
+      var secondary_box_text = doc.createTextNode(pause_text_content);
+      // create text content for the subttile message
+      var secondary_sub_text = doc.createTextNode(pause_sub_text_content);
+
+      // add the text to the h1 element
+      secondary_box_message.appendChild(secondary_box_text);
+      // add subtext to the subtitle h3 element
+      secondary_sub_message.appendChild(secondary_sub_text);
+      // add the h1 content to the popup container
+      secondary_box_container.appendChild(secondary_box_message);
+      // add the subheading to the popup container
+      secondary_box_container.appendChild(secondary_sub_message);
+      // add the popup div to the larger overlay container
+      box_overlay.appendChild(secondary_box_container);
+
       // make the message overlay globally accessible
       // need ability to change classes, content
       global.box_message = box_message;
       global.sub_message = sub_message;
       global.box_container = box_container;
+      global.secondary_box_message = secondary_box_message;
+      global.secondary_sub_message = secondary_sub_message;
+      global.secondary_box_container = secondary_box_container;
     }
 
     /* Go ahead and load all of the images we know we're going to need to

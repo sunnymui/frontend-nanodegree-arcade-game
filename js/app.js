@@ -1,5 +1,8 @@
 // general game state setting data, sizes in pixels
 
+// game state
+var paused = false;
+
 // playing field and tile sizes
 var rows = 7;
 var cols = 7;
@@ -38,11 +41,15 @@ var popup_overlay_class = 'popup_overlay';
 var popup_win_class = 'win';
 var popup_game_over_class = 'game_over';
 var popup_level_class = 'level';
+var secondary_popup_class = 'secondary';
 // text to put in the win message displayed when the goal row is reached
 var win_text_content = "You win, let's swim!";
 // text to put in the game over message box
 var game_over_text_content = 'Wipeout! Game Over Dude!';
 var instruction_text_content = 'Press ENTER to Continue >';
+// text for pause message
+var pause_text_content = 'Paused';
+var pause_sub_text_content = 'Press P to Unpause';
 
 // score text
 var score_label = 'SCORE ';
@@ -155,12 +162,6 @@ Entity.prototype.render_text = function() {
 };
 
 Entity.prototype.update = function(dt) {
-};
-
-//TODO do i really need this function?
-Entity.prototype.change_sprite = function(settings) {
-  this.sprite.pos = settings.pos;
-
 };
 
 /////////////////////////
@@ -790,6 +791,30 @@ function generate_enemies() {
     }
   }
 
+  // generate special enemies
+
+  // determine how many special enemies to generate, make it a bit rarer
+  var number_of_special_enemies = Math.floor(random_num_in_range(0, enemy_rows/2));
+  // init array for which rows to add the special enemies in
+  var special_enemy_row;
+  var special_enemy_y_position;
+  var special_enemy_x_position;
+  var special_enemy_speed;
+
+  // generate specified number of special enemies
+  for (i=0; i < number_of_special_enemies; i+=1) {
+    // randomly select a row to have the special enemy within the enemy rows
+    special_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
+    // generate the x position somewhere in the canvas bounds
+    special_enemy_x_position = random_num_in_range(0, cols * tile_width);
+    // generate the y position from the current enemy's row
+    special_enemy_y_position = special_enemy_row * tile_height - enemy_center_y_adjustment;
+    // generate the enemy speed
+  }
+
+
+
+
   return enemies_array;
 }
 
@@ -824,34 +849,50 @@ function level_reset() {
 
 }
 
-function toggle_message(container_class, message_text, no_subtext) {
+function toggle_message(container_class, message_text, no_subtext, secondary) {
   /*
   Toggles the winner message overlay popup.
   Args: css class for the specific type of message (string)
         text string to put in the main message text (string),
-        whether the standard subtext should be included (boolean)
+        whether the standard subtext should be included (boolean),
+        whether this is a secondary level popup (boolean)
   Return: none;
   */
   // show class is the container class with the on class added
   var show_class = container_class + ' on';
-  // set popup text to appropriate message content
-  box_message.textContent = message_text;
-  // if no subtext paramter is true clear out the instruction text
-  if (no_subtext) {
-    sub_message.textContent = '';
-  } else {
-    sub_message.textContent = instruction_text_content;
-  }
 
-  // set popup container class name to win class if not set
-  // and/or toggle off popup visibility by removing on class
-  if (box_container.className !== show_class) {
-    // set container to the win class
-    box_container.className = show_class;
-  // if its a different class or more than just the single class expected
+  // check if this is the secondary popup
+  if (!secondary) {
+    // set popup text to appropriate message content
+    box_message.textContent = message_text;
+    // if no subtext paramter is true clear out the instruction text
+    if (no_subtext) {
+      sub_message.textContent = '';
+    } else {
+      sub_message.textContent = instruction_text_content;
+    }
+
+    // set popup container class name to visible class if not set
+    // and/or toggle popup visibility by adding on class
+    if (box_container.className !== show_class) {
+      // set container to the on class
+      box_container.className = show_class;
+    // if its a different class or more than just the single class expected
+    } else {
+      // make popup invisible by removing the on class
+      box_container.className = container_class;
+    }
   } else {
-    // make popup visible by adding the on class/setting it to the appropriate popup
-    box_container.className = container_class;
+    // show the secondary box popup
+    // if class isn't equal to on class
+    if (secondary_box_container.className !== show_class) {
+      // set container to the on class
+      secondary_box_container.className = show_class;
+    // if its a different class or more than just the single class expected
+    } else {
+      // remove the on class
+      secondary_box_container.className = container_class;
+    }
   }
 
 }
@@ -888,6 +929,7 @@ function crossfade_canvas_and_reset() {
     // show the current level message
     toggle_message('level', game_ui_level.text, true);
     setTimeout(function() {
+      // make it go away after a bit
       toggle_message('level', game_ui_level.text, true);
     }, 2000);
     animation_running = false;
@@ -897,6 +939,20 @@ function crossfade_canvas_and_reset() {
 
   // run recursively
   requestAnimationFrame(crossfade_canvas_and_reset);
+}
+
+function pause_toggle() {
+  /*
+  Toggles the pause flag off and on. If it's false it switches to true, if true
+  it switches to false.
+  Args: na
+  Return: na
+  */
+  // simple boolean toggler for paused flag
+  paused = !paused;
+  // show the secondary message popup for the pause message
+  toggle_message(secondary_popup_class, '', false, true);
+
 }
 
 /////////////////////////
@@ -994,10 +1050,12 @@ var game_ui_level = new Entity({
 // array to store all enemy instances
 var allEnemies = generate_enemies();
 
-// show a level indicator before first level
+// show a level indicator at start of first level
 window.addEventListener("load", function(event) {
+  // toggle message on
   toggle_message(popup_level_class, game_ui_level.text, true);
   setTimeout(function() {
+    // wait before toggling message off
     toggle_message(popup_level_class, game_ui_level.text, true);
   }, 2000);
 });
@@ -1012,6 +1070,8 @@ var key_pressed;
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
 document.addEventListener('keyup', function(e) {
+    // keyboard event keycodes for various game CONTROLS
+    var p_key = 80;
     var enter_key = 13;
     var allowedKeys = {
         37: 'left',
@@ -1020,32 +1080,39 @@ document.addEventListener('keyup', function(e) {
         40: 'down'
     };
 
-    // if goal has been reached, enter key triggers level reset
-    if(player.goal_reached && e.keyCode === enter_key && !animation_running) {
-
-      animation_running = true;
-      // initiate crossfade animation
-      requestAnimationFrame(crossfade_canvas_and_reset);
-      // hide the win message overlay popup
-      toggle_message(popup_win_class, win_text_content);
-
+    // p for pause as long as not goal reached or game over
+    if (e.keyCode === p_key && !player.goal_reached && !player.game_over) {
+      // toggle the pause flag
+      pause_toggle();
     }
 
-    // if game over, enter key triggers the level reset
-    if(player.game_over && e.keyCode === enter_key && !animation_running) {
+    // enter key triggers level reset but not if animation is already running
+    if(e.keyCode === enter_key && !animation_running) {
 
+      // only trigger transition during the game over or goal reached phase
+      if (player.goal_reached || player.game_over) {
+        // turn flag for animation being run on
         animation_running = true;
-        // run transition animation and reset the level
+        // initiate crossfade animation
         requestAnimationFrame(crossfade_canvas_and_reset);
-        // toggle the message popup off
-        toggle_message(popup_game_over_class, game_over_text_content);
+
+        if (player.goal_reached) {
+          // hide the win message overlay popup
+          toggle_message(popup_win_class, win_text_content);
+        }
+
+        if (player.game_over) {
+          // toggle the message popup off
+          toggle_message(popup_game_over_class, game_over_text_content);
+        }
+      }
 
     }
 
     // only run the animation if an allowed key was pressed
     // disallow keypress being passed to movement if immobile
     // or if already in a movement action
-    if (e.keyCode in allowedKeys && !player.immobile && !player.moving) {
+    if (e.keyCode in allowedKeys && !player.immobile && !player.moving && !paused) {
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
 
@@ -1060,4 +1127,13 @@ document.addEventListener('keyup', function(e) {
       });
     }
 
+});
+
+// check if user tabs away from the window
+document.addEventListener("visibilitychange", function() {
+  // if tab is hidden and not already paused or the other endgame popups arent on
+  if (document.hidden && !pause && !player.goal_reached && !player.game_over) {
+    // pause the game
+    pause_toggle();
+  }
 });

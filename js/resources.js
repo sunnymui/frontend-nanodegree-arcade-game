@@ -194,5 +194,6 @@
       }
     };
 
+    // make sprite global
     window.Sprite = Sprite;
 })();
