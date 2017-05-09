@@ -113,11 +113,12 @@ ie player, enemies, powerups.
 Args: settings object containing data for a particular entity
 Return: constructor returned entity (object)
 */
+  // the sprite object and settings for the visuals of this entity
   this.sprite = settings.sprite;
   // these coordinates determine location, default is top left corner
   this.x = settings.position.x || 0;
   this.y = settings.position.y || 0;
-  // the width of the image sprite, including emtpy space, used for hitbox calc
+  // the width of the image sprite, including empty space, used for hitbox calc
   this.img_width = settings.img_width || tile_width;
   // set size for collision detection functions if defined
   if (typeof settings.size !== 'undefined') {
@@ -166,6 +167,8 @@ Entity.prototype.render_text = function() {
 };
 
 Entity.prototype.update = function(dt) {
+  // update the sprite for any animations
+  this.sprite.update(dt);
 };
 
 /////////////////////////
@@ -197,8 +200,6 @@ Return: Constructed Enemy instance (object)
     switch (type) {
       case 'red bug':
         this.default_sprite_img = 'images/enemy-bug.png';
-        // set bottom of hitbox to the bottom of the actual sprite art
-
         // define speed of animated movement for this enemy instance
         this.speed = speed;
         break;
@@ -212,17 +213,17 @@ Return: Constructed Enemy instance (object)
         // randomly select a special enemy to generate
         this.type = special_types[Math.floor(random_num_in_range(0,special_types.length))];
         // set enemy properties based on special type
+        // slow bug moves sloooooooow
         if (this.type === 'slow bug') {
           this.default_sprite_img = 'images/slow-bug.png';
           // make it slow
-          this.speed = Math.floor(random_num_in_range(30, 80));
-          // set bottom of hitbox to the bottom of the actual sprite art
-
+          this.speed = Math.floor(random_num_in_range(25, 70));
+        // reverse bug moves in the opposite direction
         } else if (this.type === 'reverse bug') {
           this.default_sprite_img = 'images/reverse-bug.png';
           // negative speed to go in reverse
           this.speed = Math.floor(random_num_in_range(-100, -140));
-
+        // fat bug has a larger sprite/hitbox
         } else if (this.type === 'fat bug') {
           this.default_sprite_img = 'images/fat-bug.png';
           // a little slow
@@ -241,9 +242,11 @@ Return: Constructed Enemy instance (object)
 
     // settings object to set the basics of each enemy instance
     var settings = {
-      // image url location for this enemy
+                        // image url location for this enemy
       sprite: new Sprite(this.default_sprite_img,
+                        // where to start in the sprite map
                          [0,0],
+                         // dimensions of visible portion to take from sprite map
                          [default_width, full_img_tile_height]),
       // a data object with the x, y coordinates, and row
       position: start_position,
@@ -252,6 +255,7 @@ Return: Constructed Enemy instance (object)
         width: default_width,
         height: default_height
       },
+      // width of the
       img_width: default_img_width
     };
 
@@ -271,39 +275,36 @@ Enemy.prototype.constructor = Enemy;
 // Update the enemy's position, required method for
 // Parameter: dt, a time delta between ticks
 Enemy.prototype.update = function(dt) {
-    // You should multiply any movement by the dt parameter
-    // which will ensure the game runs at the same speed for
-    // all computers.
-
-    // update the enemy sprite for any animations
-    this.sprite.update(dt);
     // move the enemy sprite across the row
     this.animate_move();
-
 };
 
 Enemy.prototype.animate_move = function() {
   /*
-   animate this enemy moving across the screen
+   animate enemy moving across the screen according to type
    increment the horizontal position of the sprite, use delta time to keep
-   movement consistent across devices
+   movement consistent across devices.
    Args: na
    Return: na
   */
+  // adjust speed by delta time to account for performance differences
   this.x += this.speed*dt;
-  // check if sprite moved all the way across screen and out of visible canvas
+
+  // exclude special cases from the standard enemy offscreen check
+  if (this.type !== 'reverse_bug' || this.type !== 'fat bug') {
+    // check if sprite moved all the way across screen and out of visible canvas
+    if (this.x > canvas_width + 100) {
+      // reset position back to the beginning but start off screen
+      this.x = -100;
+    }
+  }
   // reverse bug has reversed off screen checking since it goes the other way
-  if (this.type === 'reverse bug' && this.x < -100) {
+  else if (this.type === 'reverse bug' && this.x < -100) {
     this.x = canvas_width + 100;
   }
-  // fat bug has larger boundaries since the img is larger
+  // fat bug has larger offscreen boundaries since the img is larger
   else if (this.type === 'fat bug' && this.x > canvas_width + 150) {
     this.x = -155;
-  }
-  // check if sprite moved all the way across screen and out of visible canvas
-  else if (this.type === 'red bug' && this.x > canvas_width + 100) {
-    // reset position back to the beginning but start off screen
-    this.x = -100;
   }
 };
 
@@ -322,10 +323,6 @@ var Player = function(start_position, type) {
   // the type of character this will be
   this.type = type;
 
-  // SPRITE IMAGES
-
-  // var to store the sprite img url to insert in settings
-  //var sprite_img;
   // check for player type and assign appropriate settings for that enemy type
   switch (type) {
     case 'boy':
@@ -407,8 +404,8 @@ Args: dt (number) - the delta time for equalizing speeds across systems
 Return: na
 */
 
-  // update player sprite
-  this.sprite.update(dt);
+  // // update player sprite
+  // this.sprite.update(dt);
   // check for player status conditions
   this.check_status();
   //  checking for goal row done in player move function to prevent checking every frame
@@ -775,9 +772,9 @@ Return: Constructed Pickup instance (object)
     var possible_pickups = [];
 
     // pickup drop rates, higher numbers are more common/likely to be picked
-    // scale is from 1 - 100, 1 being rarer, 100 being generated every time
+    // scale is from 1 - 100, 1 being rarer, 100 being considered every time
     var pickup_drop_rates = {
-      'blue gem': 80,
+      'blue gem': 100,
       'green gem': 30,
       'yellow gem': 10,
       'heart': 20,
@@ -825,9 +822,11 @@ Return: Constructed Pickup instance (object)
 
     // settings object to set the basics of each Pickup instance
     var settings = {
-      // image url location for this Pickup
-      sprite: new Sprite('images/enemy-bug.png',
+                        // image url location for this Pickup
+      sprite: new Sprite(this.default_sprite_img,
+                        // where to start in the sprite map
                          [0,0],
+                         // dimensions of visible area in the sprite map
                          [default_width, full_img_tile_height]),
       // a data object with the x, y coordinates, and row
       position: start_position,
@@ -970,9 +969,10 @@ function generate_enemies() {
   var number_of_special_enemies = Math.floor(random_num_in_range(0, enemy_rows-1));
   // init array for which rows to add the special enemies in
   var special_enemy_row;
-  // init vars for special enemy object creation
+  // init vars for special enemy position coordinates
   var special_enemy_y_pos;
   var special_enemy_x_pos;
+  // special enemy type setting
   var special_enemy_type = 'special';
 
   // generate specified number of special enemies
@@ -998,42 +998,43 @@ function generate_enemies() {
 
 function generate_pickups() {
   /*
-  Generate pickups and powerups on the enemy rows.
+  Construct randomly selected pickups/powerups on the enemy rows according to
+  item drop rates. Note that this function acts like a dice roll--there's a chance
+  no items will be generated.
+  Args: na
+  Return: na
   */
   var pickups = [];
-
   // generate special enemies
   var center_y_adjustment = 30;
   // figure out number of rows to spawn enemies in
   // subtract 3 for the goal water row and the 2 grass rows
   var enemy_rows = rows - 3;
-  // determine how many special enemies to generate, make it a bit rarer
-  var number_of_special_enemies = Math.floor(random_num_in_range(0, enemy_rows-1));
-  // init array for which rows to add the special enemies in
-  var special_enemy_row;
-  // init vars for special enemy object creation
-  var special_enemy_y_pos;
-  var special_enemy_x_pos;
-  var special_enemy_type = 'special';
+  // determine how many pickups to try generating
+  var number_of_pickups = Math.floor(random_num_in_range(0, enemy_rows-1));
+  // init array for row locations of pickups
+  var pickup_row;
+  // init vars for pickup position coordinates
+  var pickup_y_pos;
+  var pickup_x_pos;
 
   // generate specified number of special enemies
-  // for (i=0; i < number_of_special_enemies; i+=1) {
-  //   // randomly select a row to have the special enemy within the enemy rows
-  //   special_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
-  //   // generate the x position somewhere in the canvas bounds
-  //   special_enemy_x_pos = random_num_in_range(0, cols * tile_width);
-  //   // generate the y position from the current enemy's row
-  //   special_enemy_y_pos = special_enemy_row * tile_height - center_y_adjustment;
-  //   // construct the special enemies and push to enemies array
-  //   pickups.push(
-  //     new Pickup({x: special_enemy_x_pos,
-  //                y: special_enemy_y_pos,
-  //                // add 1 to skip the goal row
-  //                row: special_enemy_row+1},
-  //                special_enemy_type)
-  //   );
-  // }
-  new Pickup();
+  for (i=0; i < number_of_pickups; i+=1) {
+    // randomly select a row to have the special enemy within the enemy rows
+    special_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
+    // generate the x position somewhere in the canvas bounds
+    special_enemy_x_pos = random_num_in_range(0, cols * tile_width);
+    // generate the y position from the current enemy's row
+    special_enemy_y_pos = special_enemy_row * tile_height - center_y_adjustment;
+    // construct the special enemies and push to enemies array
+    pickups.push(
+      new Pickup({x: special_enemy_x_pos,
+                 y: special_enemy_y_pos,
+                 // add 1 to skip the goal row
+                 row: special_enemy_row+1},
+                 special_enemy_type)
+    );
+  }
 
   return;
 }
@@ -1085,10 +1086,11 @@ function toggle_message(container_class, message_text, no_subtext, secondary) {
   if (!secondary) {
     // set popup text to appropriate message content
     box_message.textContent = message_text;
-    // if no subtext paramter is true clear out the instruction text
+    // if no subtext parameter is true clear out the instruction text
     if (no_subtext) {
       sub_message.textContent = '';
     } else {
+      // add the sub text in
       sub_message.textContent = instruction_text_content;
     }
 
