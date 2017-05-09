@@ -441,14 +441,25 @@ var Engine = (function(global) {
      * all of these images are properly loaded our game will start.
      */
     Resources.load([
+        // bg tiles
         'images/stone-block.png',
         'images/water-block.png',
         'images/grass-block.png',
+        // enemies
         'images/enemy-bug.png',
+        'images/slow-bug.png',
+        'images/fat-bug.png',
+        'images/reverse-bug.png',
+        // pickups
         'images/Heart.png',
+        'images/Gem Blue.png',
+        'images/Gem Green.png',
+        'images/Gem Orange.png',
+        'images/Key.png',
+        // ui
         'images/Heart-map.png',
+        // player
         'images/char-boy-map.png'
-        //'images/char-boy-hit.png'
     ]);
     Resources.onReady(init);
 
