@@ -335,9 +335,10 @@ var Engine = (function(global) {
       var entity_types;
       // check if player is invulnerable to cancel check for enemies
       if (player.invulnerable) {
-        entity_types = [];
+        entity_types = pickups;
       } else {
-        entity_types = allEnemies;
+        // create a new array by concatenating enemies and pickups
+        entity_types = allEnemies.concat(pickups);
       }
       // array to hold all the entities to check for collisions
       var entities_to_check = canCollide(entity_types);

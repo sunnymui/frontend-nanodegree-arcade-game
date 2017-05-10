@@ -349,8 +349,12 @@ var Player = function(start_position, type) {
 
   // player score tracker
   this.score = 0;
-  // player lives
+  // player lives, player starts out with this
   this.lives = 3;
+  // max amount of lives player can have
+  this.max_lives = 3;
+  // min amount of lives, player loses when they hit this number
+  this.min_lives = 0;
   // number of games finished without getting hit once
   this.streak = 0;
   // current level player is on
@@ -543,35 +547,44 @@ Player.prototype.check_if_goal_reached = function() {
   // these functions once before setting the goal reached flag
   // just in case user tries to move up again while in the goal row
   if (this.row == goal_row && !this.goal_reached) {
-    // cache reference to this for use in setTimeout
-    var self = this;
+    // run winning functions and set the player stats
+    this.execute_win();
+  }
 
-    // toggle goal reached flag
-    this.goal_reached = true;
-    // add points to the player's score
-    this.score += 10;
-    // update the game score tracker
-    game_ui_score.text = score_label + this.score;
-    // increment the current level
-    this.current_level += 1;
-    // immobilize the player
-    this.immobile = true;
-    // reset sprite in it's in the collision animation
-    this.reset_sprite();
-    // change the sprite to goal animation
-    this.set_win_sprite();
-    // show the winner message
-    toggle_message(popup_win_class, win_text_content);
+};
 
-    // if the player had a perfect game of not getting hit once
-    if (this.collision_count === 0) {
-      // add to the streak counter
-      this.streak += 1;
-    } else {
-      // reset the collision counter for the next game if they got hit this round
-      this.collision_count = 0;
-    }
+Player.prototype.execute_win = function() {
+  /*
+  Executes all of the functions, messages, and setting of stats, etc when player
+  has won or beat a level.
+  Args: na
+  Return: na
+  */
 
+  // toggle goal reached flag
+  this.goal_reached = true;
+  // add points to the player's score
+  this.score += 10;
+  // update the game score tracker
+  game_ui_score.text = score_label + this.score;
+  // increment the current level
+  this.current_level += 1;
+  // immobilize the player
+  this.immobile = true;
+  // reset sprite in it's in the collision animation
+  this.reset_sprite();
+  // change the sprite to goal animation
+  this.set_win_sprite();
+  // show the winner message
+  toggle_message(popup_win_class, win_text_content);
+
+  // if the player had a perfect game of not getting hit once
+  if (this.collision_count === 0) {
+    // add to the streak counter
+    this.streak += 1;
+  } else {
+    // reset the collision counter for the next game if they got hit this round
+    this.collision_count = 0;
   }
 
 };
@@ -597,7 +610,7 @@ Player.prototype.reset = function(game_over) {
   // resets additional stuff if it's a game over player reset
   if (this.game_over) {
     // reset player lives
-    this.lives = 3;
+    this.lives = this.max_lives;
     // reset the current level
     this.current_level = 1;
     // reset game over flag
@@ -619,16 +632,16 @@ Player.prototype.collided = function(entity) {
 
     // if player collided with an enemy
     if (entity instanceof Enemy) {
-      // increment the current game collsion count
+      // increment the current game collision count
       this.collision_count += 1;
       // decrement the player's health/life counter
-      this.lives = clamp(this.lives - 1, 0, 3);
+      this.lives = clamp(this.lives - 1, this.min_lives, this.max_lives);
       // change the the lives sprite map to display a lost life
       // selects the last life sprite and changes the sprite map pos
       // to show the empty life sprite
       lives[this.lives].sprite.pos = [tile_width, 0];
       // trigger game over if player got hit with no lives left
-      if(this.lives === 0) {
+      if(this.lives === this.min_lives) {
         // show the death animation
         this.set_game_over_sprite();
         // show the game over message
@@ -652,6 +665,39 @@ Player.prototype.collided = function(entity) {
       this.immobile = true;
       // change sprite to collision sprite image animation
       this.set_collision_sprite();
+    }
+
+    if (entity instanceof Pickup) {
+      switch (entity.type) {
+        case 'blue gem':
+          // add points to player score
+          this.score += 2;
+          break;
+        case 'green gem':
+          this.score += 5;
+          break;
+        case 'orange gem':
+          this.score += 10;
+          break;
+        case 'heart':
+          // add a life to the player life bar
+          this.lives = clamp(this.lives + 1, this.min_lives, this.max_lives);
+          // make the corresponding heart sprite back to full
+          lives[this.lives-1].sprite.pos = [0, 0];
+          break;
+        case 'key':
+          this.x = center_tile;
+          this.y = (tile_height) - (full_img_tile_height * 2/3);
+          // instant victory for player
+          this.execute_win();
+          break;
+      }
+      // update the game score tracker
+      game_ui_score.text = score_label + this.score;
+      // get the index of the current entity
+      var pickup_index = pickups.indexOf(entity);
+      // remove the pickup from the pickups array
+      pickups.splice(pickup_index, 1);
     }
 
 };
@@ -789,7 +835,7 @@ Return: Constructed Pickup instance (object)
       'green gem': 60,
       'orange gem': 20,
       'heart': 40,
-      'key': 10,
+      'key': 100,
     };
 
     // generate random number for the drop chance to compare with the drop rate
@@ -1072,6 +1118,8 @@ function level_reset() {
   allEnemies.length = 0;
   // regenerate enemies so that they change from previous level
   allEnemies = generate_enemies();
+  // regenerate pickups
+  pickups = generate_pickups();
   // if game over reset the lives sprites too
   if(player.game_over) {
     // reset player position and stats, but also reset game over stats
