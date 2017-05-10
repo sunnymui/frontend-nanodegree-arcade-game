@@ -183,14 +183,15 @@ var Engine = (function(global) {
         // render the background using the saved, prerendered background image data
         ctx.putImageData(background, 0, 0);
 
+        // render the game interactive entities
+        renderEntities(pickups);
+        renderEntities(allEnemies);
+        renderEntity(player);
+
         // render the game ui
         renderEntities(lives);
         renderEntity(game_ui_score);
         renderEntity(game_ui_level);
-
-        //render the game interactive entities
-        renderEntities(allEnemies);
-        renderEntity(player);
 
     }
 

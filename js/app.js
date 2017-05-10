@@ -8,6 +8,10 @@ var rows = 7;
 var cols = 7;
 // goal row player must reach to score
 var goal_row = 1;
+// figure out number of rows that will hold enemies
+// subtract 3 for the goal water row and the 2 grass rows
+var enemy_rows = rows - 3;
+// width of sprite tiles
 var tile_width = 101;
 // note: not actual height of the img, just the square 'above ground' part
 var tile_height = 83;
@@ -291,7 +295,7 @@ Enemy.prototype.animate_move = function() {
   this.x += this.speed*dt;
 
   // exclude special cases from the standard enemy offscreen check
-  if (this.type !== 'reverse_bug' || this.type !== 'fat bug') {
+  if (this.type !== 'reverse_bug' && this.type !== 'fat bug') {
     // check if sprite moved all the way across screen and out of visible canvas
     if (this.x > canvas_width + 100) {
       // reset position back to the beginning but start off screen
@@ -760,25 +764,32 @@ Args: start_position (object) - obj literal containing {x:, y:} location info
 Return: Constructed Pickup instance (object)
 */
 
-    // set the default height to 50
+    // set the default height for the hitbox
     var default_height = 85;
-    // set default height to 100
-    var default_width = 96;
+    // set default width for the hitbox
+    var default_width = 86;
+    // scale size of the actual rendered sprite visuals
+    var scaled_img_width = tile_width*0.7;
+    var scaled_img_height = full_img_tile_height*0.7;
     // default sprite image width
     var default_img_width = tile_width;
     // default hitbox bottom edge
     var default_hitbox_bottom_edge = 163;
+    // adjust vertical position centering on tile, # of pixels from the top
+    var center_y_adjustment = 5;
+    // adjust horizontal position centering on tile, # of pixels from left
+    var center_x_adjustment = 15;
     // array to hold pickups with matching drop rates to our random drop chance
     var possible_pickups = [];
 
     // pickup drop rates, higher numbers are more common/likely to be picked
     // scale is from 1 - 100, 1 being rarer, 100 being considered every time
     var pickup_drop_rates = {
-      'blue gem': 100,
-      'green gem': 30,
-      'yellow gem': 10,
-      'heart': 20,
-      'key': 5,
+      'blue gem': 0,
+      'green gem': 60,
+      'orange gem': 20,
+      'heart': 100,
+      'key': 100,
     };
 
     // generate random number for the drop chance to compare with the drop rate
@@ -809,14 +820,21 @@ Return: Constructed Pickup instance (object)
       case 'green gem':
         this.default_sprite_img = 'images/Gem Green.png';
         break;
-      case 'yellow gem':
-        this.default_sprite_img = 'images/Gem Yellow.png';
+      case 'orange gem':
+        this.default_sprite_img = 'images/Gem Orange.png';
         break;
       case 'heart':
         this.default_sprite_img = 'images/Heart.png';
+        // adjust to center the img
+        center_y_adjustment = 22;
+        center_x_adjustment = 22;
+        // scale it down a little bit
+        scaled_img_width *= 0.8;
+        scaled_img_height *= 0.8;
         break;
       case 'key':
         this.default_sprite_img = 'images/Key.png';
+        center_x_adjustment = 19;
         break;
     }
 
@@ -827,9 +845,16 @@ Return: Constructed Pickup instance (object)
                         // where to start in the sprite map
                          [0,0],
                          // dimensions of visible area in the sprite map
-                         [default_width, full_img_tile_height]),
+                         [tile_width,
+                          full_img_tile_height,
+                          // image scaling size settings
+                          scaled_img_width,
+                          scaled_img_height]),
       // a data object with the x, y coordinates, and row
-      position: start_position,
+      position: {
+        x: start_position.x + center_x_adjustment,
+        y: start_position.y + center_y_adjustment
+      },
       // size of hitbox for collision detection
       size: {
         width: default_width,
@@ -858,8 +883,7 @@ Args: dt (number) - the delta time for equalizing speeds across systems
 Return: na
 */
 
-  // update player sprite
-  this.sprite.update(dt);
+
 };
 
 //////////////////////////////////
@@ -896,17 +920,16 @@ function generate_enemies() {
   var enemies_array = [];
   // pixel position adjustments for centering the sprite on the tile
   var enemy_center_y_adjustment = 30;
-  // figure out number of rows to spawn enemies in
-  // subtract 3 for the goal water row and the 2 grass rows
-  var enemy_rows = rows - 3;
 
   // init var to get the last rows which will have higher difficulty enemies
   var last_rows;
   // init var for number of enemies to generate in current row
   var enemies_in_current_row;
-  // init var for the current enemy horizontal and vertical position
+  // init vars for the current enemy horizontal and vertical position
   var current_enemy_x_pos;
   var current_enemy_y_pos;
+  // enemy row position
+  var current_enemy_row;
   // init var for enemy speed
   var current_enemy_speed;
   // init var for pixel margin between each enemy sprite in the row
@@ -917,6 +940,8 @@ function generate_enemies() {
   var easy_max_enemies = Math.ceil(cols/3);
   // regular enemy type
   var regular_enemy_type = 'red bug';
+  // special enemy type setting
+  var special_enemy_type = 'special';
 
   // enemy spawning loop to fill the allEnemies array
   for (i=0; i < enemy_rows; i+=1) {
@@ -944,6 +969,8 @@ function generate_enemies() {
     current_enemy_y_pos = (i+1) * tile_height - enemy_center_y_adjustment;
     // calculate evenly distributed pixel space between each enemy sprite
     space_between_enemies = cols * tile_width / enemies_in_current_row;
+    // row is i + 2 since rows start at 1 and we skip the goal row
+    current_enemy_row = i + 2;
 
     // loop through number of enemies in the current row and set x,y positions for each
     for (j=0; j < enemies_in_current_row; j+=1) {
@@ -956,7 +983,7 @@ function generate_enemies() {
         new Enemy({x: current_enemy_x_pos,
                    y: current_enemy_y_pos,
                    // adding 2 to make the row grid start at 1 and skip the first goal row
-                   row: i+2},
+                   row: current_enemy_row},
                    regular_enemy_type,
                    current_enemy_speed)
       );
@@ -967,28 +994,21 @@ function generate_enemies() {
 
   // determine how many special enemies to generate, make it a bit rarer
   var number_of_special_enemies = Math.floor(random_num_in_range(0, enemy_rows-1));
-  // init array for which rows to add the special enemies in
-  var special_enemy_row;
-  // init vars for special enemy position coordinates
-  var special_enemy_y_pos;
-  var special_enemy_x_pos;
-  // special enemy type setting
-  var special_enemy_type = 'special';
 
   // generate specified number of special enemies
   for (i=0; i < number_of_special_enemies; i+=1) {
     // randomly select a row to have the special enemy within the enemy rows
-    special_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
+    current_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
     // generate the x position somewhere in the canvas bounds
-    special_enemy_x_pos = random_num_in_range(0, cols * tile_width);
+    current_enemy_x_pos = random_num_in_range(0, cols * tile_width);
     // generate the y position from the current enemy's row
-    special_enemy_y_pos = special_enemy_row * tile_height - enemy_center_y_adjustment;
+    current_enemy_y_pos = current_enemy_row * tile_height - enemy_center_y_adjustment;
     // construct the special enemies and push to enemies array
     enemies_array.push(
-      new Enemy({x: special_enemy_x_pos,
-                 y: special_enemy_y_pos,
-                 // add 1 to skip the goal row
-                 row: special_enemy_row+1},
+      new Enemy({x: current_enemy_x_pos,
+                 y: current_enemy_y_pos,
+                 // add 1 to skip the goal row since row numbering starts at 1
+                 row: current_enemy_row + 1},
                  special_enemy_type)
     );
   }
@@ -1004,39 +1024,38 @@ function generate_pickups() {
   Args: na
   Return: na
   */
+  // init var to store all the constructed pickup objects
   var pickups = [];
-  // generate special enemies
-  var center_y_adjustment = 30;
-  // figure out number of rows to spawn enemies in
-  // subtract 3 for the goal water row and the 2 grass rows
-  var enemy_rows = rows - 3;
   // determine how many pickups to try generating
-  var number_of_pickups = Math.floor(random_num_in_range(0, enemy_rows-1));
-  // init array for row locations of pickups
+  var number_of_pickups = Math.floor(random_num_in_range(0, enemy_rows+10));
+  // row location of pickup
   var pickup_row;
+  // column location of pickup
+  var pickup_col;
   // init vars for pickup position coordinates
-  var pickup_y_pos;
   var pickup_x_pos;
+  var pickup_y_pos;
 
   // generate specified number of special enemies
   for (i=0; i < number_of_pickups; i+=1) {
-    // randomly select a row to have the special enemy within the enemy rows
-    special_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
+    // randomly select a row place the pickup in the enemy rows
+    pickup_row = Math.floor(random_num_in_range(1, enemy_rows));
+    // randomly select a col to place the pickup in
+    pickup_col = Math.floor(random_num_in_range(1, cols));
     // generate the x position somewhere in the canvas bounds
-    special_enemy_x_pos = random_num_in_range(0, cols * tile_width);
+    pickup_x_pos = pickup_col * tile_width;
     // generate the y position from the current enemy's row
-    special_enemy_y_pos = special_enemy_row * tile_height - center_y_adjustment;
+    pickup_y_pos = pickup_row * tile_height;
     // construct the special enemies and push to enemies array
     pickups.push(
-      new Pickup({x: special_enemy_x_pos,
-                 y: special_enemy_y_pos,
+      new Pickup({x: pickup_x_pos,
+                 y: pickup_y_pos,
                  // add 1 to skip the goal row
-                 row: special_enemy_row+1},
-                 special_enemy_type)
+                 row: pickup_row+1})
     );
   }
 
-  return;
+  return pickups;
 }
 
 function level_reset() {
@@ -1198,6 +1217,18 @@ var player_start_position = {
 // instantiate the player character
 var player = new Player(player_start_position, 'boy');
 
+/////////////////////////
+// ENEMY INSTANTIATION //
+/////////////////////////
+
+// array to store all enemy instances
+var allEnemies = generate_enemies();
+
+//////////////////////////
+// PICKUP INSTANTIATION //
+//////////////////////////
+
+var pickups = generate_pickups();
 
 /////////////////////////
 //   UI INSTANTATION   //
@@ -1265,19 +1296,12 @@ var game_ui_level = new Entity({
   font_color: 'rgba(131, 131, 131, 0.54)'
 });
 
-/////////////////////////
-// ENEMY INSTANTIATION //
-/////////////////////////
-
-// array to store all enemy instances
-var allEnemies = generate_enemies();
-
-
-// pickup INSTANTIATION
-
-var pickups = generate_pickups();
+///////////////
+//  PREGAME  //
+///////////////
 
 // show a level indicator at start of first level
+
 window.addEventListener("load", function(event) {
   // toggle message on
   toggle_message(popup_level_class, game_ui_level.text, true);
@@ -1286,7 +1310,6 @@ window.addEventListener("load", function(event) {
     toggle_message(popup_level_class, game_ui_level.text, true);
   }, level_popup_delay);
 });
-
 
 //////////////
 // CONTROLS //
