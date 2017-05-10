@@ -785,17 +785,16 @@ Return: Constructed Pickup instance (object)
     // pickup drop rates, higher numbers are more common/likely to be picked
     // scale is from 1 - 100, 1 being rarer, 100 being considered every time
     var pickup_drop_rates = {
-      'blue gem': 0,
+      'blue gem': 100,
       'green gem': 60,
       'orange gem': 20,
-      'heart': 100,
-      'key': 100,
+      'heart': 40,
+      'key': 10,
     };
 
     // generate random number for the drop chance to compare with the drop rate
     // chance determines rarity of item added, lower numbers are rarer
     var drop_chance = Math.floor(random_num_in_range(0,101));
-    console.log('chance:'+ drop_chance);
 
     // compare generated drop chance to every item's drop rate
     for (var item in pickup_drop_rates) {
@@ -806,11 +805,9 @@ Return: Constructed Pickup instance (object)
         possible_pickups.push(item);
       }
     }
-    console.log(possible_pickups);
 
     // select a single item at random from our possible pickups array
     this.type = possible_pickups[Math.floor(random_num_in_range(0, possible_pickups.length))];
-    console.log(this.type);
 
     // check for Pickup type and assign appropriate settings for that Pickup type
     switch (this.type) {
@@ -868,6 +865,8 @@ Return: Constructed Pickup instance (object)
 
     // the row # the Pickup is in (starting at 1 at top, 2 for row below, etc)
     this.row = start_position.row;
+    // the col # the pickup is in, starting at 1
+    this.col = start_position.col;
     // calculate the top y position of the hitbox upwards using the height
     this.hitbox_y = default_hitbox_bottom_edge - this.height;
 };
@@ -875,16 +874,6 @@ Return: Constructed Pickup instance (object)
 Pickup.prototype = Object.create(Entity.prototype);
 // set constructor property to correct constructor since it still points to Entity
 Pickup.prototype.constructor = Pickup;
-
-Pickup.prototype.update = function(dt) {
-/*
-Thing that need updating or checking every frame executed in this function.
-Args: dt (number) - the delta time for equalizing speeds across systems
-Return: na
-*/
-
-
-};
 
 //////////////////////////////////
 //     INSTANTIATE OBJECTS      //
@@ -1027,7 +1016,7 @@ function generate_pickups() {
   // init var to store all the constructed pickup objects
   var pickups = [];
   // determine how many pickups to try generating
-  var number_of_pickups = Math.floor(random_num_in_range(0, enemy_rows+10));
+  var number_of_pickups = Math.floor(random_num_in_range(0, enemy_rows+4));
   // row location of pickup
   var pickup_row;
   // column location of pickup
@@ -1046,13 +1035,27 @@ function generate_pickups() {
     pickup_x_pos = pickup_col * tile_width;
     // generate the y position from the current enemy's row
     pickup_y_pos = pickup_row * tile_height;
-    // construct the special enemies and push to enemies array
+    // construct the pickup and push to pickup array
     pickups.push(
       new Pickup({x: pickup_x_pos,
                  y: pickup_y_pos,
                  // add 1 to skip the goal row
-                 row: pickup_row+1})
+                 row: pickup_row+1,
+                 col: pickup_col+1})
     );
+  }
+
+  // remove pickups that are in the same space as other pickups
+  // length-1 because the last item won't have a next item to compare
+  for (i = 0; i < pickups.length-1; i+=1 ) {
+    // inner loop to compare current element with next element
+    for (j = 0; j < pickups.length-1; j+=1) {
+      // if row and col are equal for both elements they are in the same spot
+      if (pickups[i].row === pickups[j+1].row && pickups[i].col === pickups[j+1].col) {
+        // remove the element from the pickups array
+        pickups.splice(i,1);
+      }
+    }
   }
 
   return pickups;
