@@ -2,6 +2,8 @@
 
 // game state
 var paused = false;
+var on_start_screen = true;
+var first_level = true;
 
 // playing field and tile sizes
 var rows = 7;
@@ -65,7 +67,26 @@ var level_text = '1';
 // time in ms before the level popup is hidden
 var level_popup_delay = 1200;
 
+// some globalish vars for instantiation functions
+
+// counters for incrementing loops
+var i;
+var j;
+
+// animation vars
+
+// counter for the crossfade animation to work in incrementing 0 to 1 to 0
+var animation_fade_counter = 0;
+// how many steps for the crossfade animation to have is pi
+// divided by the # you want, determines how long the animation lasts
+// and how many frames the animation has
+var animation_fade_increase = Math.PI / 100;
+// flag to track if transition animation is running
+var animation_running = false;
+
+// ================
 // Utility functions
+// ================
 
 function clamp(number, min, max) {
 /*
@@ -105,6 +126,315 @@ Return: array of length n containing values of each integer from start to end
     }
     return number_array;
 }
+
+// ================
+// Game Functions
+// ================
+
+// putting the enemy construction loop in a function for ease of resetting the level
+function generate_enemies() {
+  /*
+  Constructs all the different enemies w/ their differing characteristsics
+  into an array of all the enemies on the level.
+  Args: na
+  Return: all the Enemy instances (array)
+  */
+
+  var enemies_array = [];
+  // pixel position adjustments for centering the sprite on the tile
+  var enemy_center_y_adjustment = 30;
+
+  // init var to get the last rows which will have higher difficulty enemies
+  var last_rows;
+  // init var for number of enemies to generate in current row
+  var enemies_in_current_row;
+  // init vars for the current enemy horizontal and vertical position
+  var current_enemy_x_pos;
+  var current_enemy_y_pos;
+  // enemy row position
+  var current_enemy_row;
+  // init var for enemy speed
+  var current_enemy_speed;
+  // init var for pixel margin between each enemy sprite in the row
+  var space_between_enemies;
+  // scale max allowed enemies with the number of columns
+  var hard_max_enemies = Math.ceil(cols/2);
+  // scale max enemies for easy rows also
+  var easy_max_enemies = Math.ceil(cols/3);
+  // regular enemy type
+  var regular_enemy_type = 'red bug';
+  // special enemy type setting
+  var special_enemy_type = 'special';
+
+  // enemy spawning loop to fill the allEnemies array
+  for (i=0; i < enemy_rows; i+=1) {
+
+    // find the last few rows because they will have more enemies
+    // ceiling rounding to make more high difficulty rows
+    last_rows = Math.ceil(enemy_rows/3);
+
+    // check if the current row is one of the last for increased difficulty
+    if (i < last_rows) {
+      // set more enemies in current row if one of the last rows
+      enemies_in_current_row = random_num_in_range(2, hard_max_enemies);
+      // higher range for the enemy speed
+      current_enemy_speed = Math.floor(random_num_in_range(150, 190));
+    } else {
+      // less possible enemies for regular rows
+      enemies_in_current_row = random_num_in_range(1, easy_max_enemies);
+      // lower range speed for enemies in these rows
+      current_enemy_speed = Math.floor(random_num_in_range(70, 155));
+    }
+
+    // calculate the enemy y position by getting the current row's pixel height
+    // then subtracting pixels to center the enemy vertically in the row
+    // i+1 to skip spawning enemies in the top goal row
+    current_enemy_y_pos = (i+1) * tile_height - enemy_center_y_adjustment;
+    // calculate evenly distributed pixel space between each enemy sprite
+    space_between_enemies = cols * tile_width / enemies_in_current_row;
+    // row is i + 2 since rows start at 1 and we skip the goal row
+    current_enemy_row = i + 2;
+
+    // loop through number of enemies in the current row and set x,y positions for each
+    for (j=0; j < enemies_in_current_row; j+=1) {
+      // enemy x position determined by number of enemies spaced equally on the row
+      // round it down to make a nice round integer for the position value
+      current_enemy_x_pos = Math.floor(j * space_between_enemies);
+
+      // construct the enemies for the current row and push to the allEnemies array
+      enemies_array.push(
+        new Enemy({x: current_enemy_x_pos,
+          y: current_enemy_y_pos,
+          // adding 2 to make the row grid start at 1 and skip the first goal row
+          row: current_enemy_row},
+          regular_enemy_type,
+          current_enemy_speed)
+        );
+      }
+  }
+
+  // generate special enemies
+
+  // determine how many special enemies to generate, make it a bit rarer
+  var number_of_special_enemies = Math.floor(random_num_in_range(0, enemy_rows-1));
+
+  // generate specified number of special enemies
+  for (i=0; i < number_of_special_enemies; i+=1) {
+    // randomly select a row to have the special enemy within the enemy rows
+    current_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
+    // generate the x position somewhere in the canvas bounds
+    current_enemy_x_pos = random_num_in_range(0, cols * tile_width);
+    // generate the y position from the current enemy's row
+    current_enemy_y_pos = current_enemy_row * tile_height - enemy_center_y_adjustment;
+    // construct the special enemies and push to enemies array
+    enemies_array.push(
+      new Enemy({x: current_enemy_x_pos,
+        y: current_enemy_y_pos,
+        // add 1 to skip the goal row since row numbering starts at 1
+        row: current_enemy_row + 1},
+        special_enemy_type)
+      );
+    }
+
+  return enemies_array;
+}
+
+function generate_pickups() {
+  /*
+  Construct randomly selected pickups/powerups on the enemy rows according to
+  item drop rates. Note that this function acts like a dice roll--there's a chance
+  no items will be generated.
+  Args: na
+  Return: na
+  */
+  // init var to store all the constructed pickup objects
+  var pickups = [];
+  // determine how many pickups to try generating
+  var number_of_pickups = Math.floor(random_num_in_range(0, enemy_rows+4));
+  // row location of pickup
+  var pickup_row;
+  // column location of pickup
+  var pickup_col;
+  // init vars for pickup position coordinates
+  var pickup_x_pos;
+  var pickup_y_pos;
+
+  // generate specified number of special enemies
+  for (i=0; i < number_of_pickups; i+=1) {
+    // randomly select a row place the pickup in the enemy rows
+    pickup_row = Math.floor(random_num_in_range(1, enemy_rows));
+    // randomly select a col to place the pickup in
+    pickup_col = Math.floor(random_num_in_range(1, cols));
+    // generate the x position somewhere in the canvas bounds
+    pickup_x_pos = pickup_col * tile_width;
+    // generate the y position from the current enemy's row
+    pickup_y_pos = pickup_row * tile_height;
+    // construct the pickup and push to pickup array
+    pickups.push(
+      new Pickup({x: pickup_x_pos,
+        y: pickup_y_pos,
+        // add 1 to skip the goal row
+        row: pickup_row+1,
+        col: pickup_col+1})
+      );
+  }
+
+  // remove pickups that are in the same space as other pickups
+  // length-1 because the last item won't have a next item to compare
+  for (i = 0; i < pickups.length-1; i+=1 ) {
+    // inner loop to compare current element with next element
+    for (j = 0; j < pickups.length-1; j+=1) {
+      // if row and col are equal for both elements they are in the same spot
+      if (pickups[i].row === pickups[j+1].row && pickups[i].col === pickups[j+1].col) {
+        // remove the element from the pickups array
+        pickups.splice(i,1);
+      }
+    }
+  }
+
+  return pickups;
+}
+
+function level_reset() {
+  /*
+  Resets the game level so player is back at the beginning and ready
+  to tackle a new board of enemies.
+  Args: na
+  return: na
+  */
+  // clear the previous enemies array
+  allEnemies.length = 0;
+  // regenerate enemies so that they change from previous level
+  allEnemies = generate_enemies();
+  // regenerate pickups
+  pickups = generate_pickups();
+  // if game over reset the lives sprites too
+  if(player.game_over) {
+    // reset player position and stats, but also reset game over stats
+    player.reset(true);
+    // loop through the lives array to reset the sprites
+    for (i=0; i < lives.length; i+=1) {
+      // reset back to the full life sprite in the map
+      lives[i].sprite.pos = [0, 0];
+    }
+  } else {
+    // move player back to start and reset condition
+    player.reset();
+  }
+  // update the rendered level text displayed
+  game_ui_level.text = level_label + player.current_level;
+  // update the rendered score text displayed
+  game_ui_score.text = score_label + player.score;
+
+}
+
+function toggle_message(container_class, message_text, no_subtext, secondary) {
+  /*
+  Toggles the winner message overlay popup.
+  Args: css class for the specific type of message (string)
+  text string to put in the main message text (string),
+  whether the standard subtext should be included (boolean),
+  whether this is a secondary level popup (boolean)
+  Return: none;
+  */
+  // show class is the container class with the on class added
+  var show_class = container_class + ' on';
+
+  // check if this is the secondary popup
+  if (!secondary) {
+    // set popup text to appropriate message content
+    box_message.textContent = message_text;
+    // if no subtext parameter is true clear out the instruction text
+    if (no_subtext) {
+      sub_message.textContent = '';
+    } else {
+      // add the sub text in
+      sub_message.textContent = instruction_text_content;
+    }
+
+    // set popup container class name to visible class if not set
+    // and/or toggle popup visibility by adding on class
+    if (box_container.className !== show_class) {
+      // set container to the on class
+      box_container.className = show_class;
+      // if its a different class or more than just the single class expected
+    } else {
+      // make popup invisible by removing the on class
+      box_container.className = container_class;
+    }
+  } else {
+    // show the secondary box popup
+    // if class isn't equal to on class
+    if (secondary_box_container.className !== show_class) {
+      // set container to the on class
+      secondary_box_container.className = show_class;
+      // if its a different class or more than just the single class expected
+    } else {
+      // remove the on class
+      secondary_box_container.className = container_class;
+    }
+  }
+
+}
+
+function crossfade_canvas_and_reset() {
+  /*
+  Fade's the canvas out then back in again. Resets stuff at certain points
+  Args: na
+  Return: na
+  */
+
+  // set the global alpha transparency from 1 to 0 back to 1ish
+  // using math.sin since it goes up then down then back
+  // multiply by -1 to count downwards
+  // add 0.9 to make the transition actually increment reasonably
+  ctx.globalAlpha = (-1*Math.sin(animation_fade_counter))+0.9;
+  // increase the counter
+  animation_fade_counter += animation_fade_increase;
+
+  // do the resets when stuff is invisible
+  if (ctx.globalAlpha < 0.01) {
+    // reset the level
+    level_reset();
+  }
+
+  // if the global transparency is almost back to full opacity
+  if (ctx.globalAlpha > 0.99) {
+    // reset the counter
+    animation_fade_counter = 0;
+    // set transparency back to full opacity
+    ctx.globalAlpha = 1;
+    // restore player mobility
+    player.immobile = false;
+    // show the current level message
+    toggle_message(popup_level_class, game_ui_level.text, true);
+    setTimeout(function() {
+      // make it go away after a bit
+      toggle_message(popup_level_class, game_ui_level.text, true);
+    }, level_popup_delay);
+    animation_running = false;
+    // exit the animation
+    return;
+  }
+
+  // run recursively
+  requestAnimationFrame(crossfade_canvas_and_reset);
+}
+
+function pause_toggle() {
+  /*
+  Toggles the pause flag off and on. If it's false it switches to true, if true
+  it switches to false.
+  Args: na
+  Return: na
+  */
+  // simple boolean toggler for paused flag
+  paused = !paused;
+  // show the secondary message popup for the pause message
+  toggle_message(secondary_popup_class, '', false, true);
+
+}
+
 
 /////////////////////////
 //     ENTITY CLASS    //
@@ -412,8 +742,6 @@ Args: dt (number) - the delta time for equalizing speeds across systems
 Return: na
 */
 
-  // // update player sprite
-  // this.sprite.update(dt);
   // check for player status conditions
   this.check_status();
   //  checking for goal row done in player move function to prevent checking every frame
@@ -686,6 +1014,9 @@ Player.prototype.collided = function(entity) {
           lives[this.lives-1].sprite.pos = [0, 0];
           break;
         case 'key':
+          // set distance moved to completion of player move so movement stops
+          this.distance_moved = full_img_tile_height;
+          // move to goal row coordinates
           this.x = center_tile;
           this.y = (tile_height) - (full_img_tile_height * 2/3);
           // instant victory for player
@@ -700,6 +1031,22 @@ Player.prototype.collided = function(entity) {
       pickups.splice(pickup_index, 1);
     }
 
+};
+
+Player.prototype.fly_to_goal = function() {
+  if (this.x > center_tile) {
+
+  } else {
+
+  }
+
+  if (this.y > (tile_height) - (full_img_tile_height * 2/3)) {
+
+  } else {
+
+  }
+
+  requestAnimationFrame();
 };
 
 Player.prototype.set_collision_sprite = function() {
@@ -811,9 +1158,9 @@ Return: Constructed Pickup instance (object)
 */
 
     // set the default height for the hitbox
-    var default_height = 85;
+    var default_height = 100;
     // set default width for the hitbox
-    var default_width = 86;
+    var default_width = tile_width;
     // scale size of the actual rendered sprite visuals
     var scaled_img_width = tile_width*0.7;
     var scaled_img_height = full_img_tile_height*0.7;
@@ -874,10 +1221,14 @@ Return: Constructed Pickup instance (object)
         // scale it down a little bit
         scaled_img_width *= 0.8;
         scaled_img_height *= 0.8;
+        // move bottom edge of hitbox to account for smaller size
+        default_hitbox_bottom_edge = 140;
         break;
       case 'key':
         this.default_sprite_img = 'images/Key.png';
         center_x_adjustment = 19;
+        // smaller item, move the hitbox
+        default_hitbox_botom_edge = 140;
         break;
     }
 
@@ -915,6 +1266,7 @@ Return: Constructed Pickup instance (object)
     this.col = start_position.col;
     // calculate the top y position of the hitbox upwards using the height
     this.hitbox_y = default_hitbox_bottom_edge - this.height;
+
 };
 // set the Pickup prototype equal to an instance of the Entity's prototype
 Pickup.prototype = Object.create(Entity.prototype);
@@ -925,327 +1277,9 @@ Pickup.prototype.constructor = Pickup;
 //     INSTANTIATE OBJECTS      //
 //////////////////////////////////
 
-// some globalish vars for instantiation functions
-
-// counters for incrementing loops
-var i;
-var j;
-// counter for the crossfade animation to work in incrementing 0 to 1 to 0
-var animation_fade_counter = 0;
-// how many steps for the crossfade animation to have is pi
-// divided by the # you want, determines how long the animation lasts
-// and how many frames the animation has
-var animation_fade_increase = Math.PI / 100;
-// flag to track if transition animation is running
-var animation_running = false;
-
 // Instantiate everything
 // All enemy objects in an array called allEnemies
 // Player object in a variable called player
-
-// putting the enemy construction loop in a function for ease of resetting the level
-function generate_enemies() {
-  /*
-  Constructs all the different enemies w/ their differing characteristsics
-  into an array of all the enemies on the level.
-  Args: na
-  Return: all the Enemy instances (array)
-  */
-
-  var enemies_array = [];
-  // pixel position adjustments for centering the sprite on the tile
-  var enemy_center_y_adjustment = 30;
-
-  // init var to get the last rows which will have higher difficulty enemies
-  var last_rows;
-  // init var for number of enemies to generate in current row
-  var enemies_in_current_row;
-  // init vars for the current enemy horizontal and vertical position
-  var current_enemy_x_pos;
-  var current_enemy_y_pos;
-  // enemy row position
-  var current_enemy_row;
-  // init var for enemy speed
-  var current_enemy_speed;
-  // init var for pixel margin between each enemy sprite in the row
-  var space_between_enemies;
-  // scale max allowed enemies with the number of columns
-  var hard_max_enemies = Math.ceil(cols/2);
-  // scale max enemies for easy rows also
-  var easy_max_enemies = Math.ceil(cols/3);
-  // regular enemy type
-  var regular_enemy_type = 'red bug';
-  // special enemy type setting
-  var special_enemy_type = 'special';
-
-  // enemy spawning loop to fill the allEnemies array
-  for (i=0; i < enemy_rows; i+=1) {
-
-    // find the last few rows because they will have more enemies
-    // ceiling rounding to make more high difficulty rows
-    last_rows = Math.ceil(enemy_rows/3);
-
-    // check if the current row is one of the last for increased difficulty
-    if (i < last_rows) {
-      // set more enemies in current row if one of the last rows
-      enemies_in_current_row = random_num_in_range(2, hard_max_enemies);
-      // higher range for the enemy speed
-      current_enemy_speed = Math.floor(random_num_in_range(150, 190));
-    } else {
-      // less possible enemies for regular rows
-      enemies_in_current_row = random_num_in_range(1, easy_max_enemies);
-      // lower range speed for enemies in these rows
-      current_enemy_speed = Math.floor(random_num_in_range(70, 155));
-    }
-
-    // calculate the enemy y position by getting the current row's pixel height
-    // then subtracting pixels to center the enemy vertically in the row
-    // i+1 to skip spawning enemies in the top goal row
-    current_enemy_y_pos = (i+1) * tile_height - enemy_center_y_adjustment;
-    // calculate evenly distributed pixel space between each enemy sprite
-    space_between_enemies = cols * tile_width / enemies_in_current_row;
-    // row is i + 2 since rows start at 1 and we skip the goal row
-    current_enemy_row = i + 2;
-
-    // loop through number of enemies in the current row and set x,y positions for each
-    for (j=0; j < enemies_in_current_row; j+=1) {
-      // enemy x position determined by number of enemies spaced equally on the row
-      // round it down to make a nice round integer for the position value
-      current_enemy_x_pos = Math.floor(j * space_between_enemies);
-
-      // construct the enemies for the current row and push to the allEnemies array
-      enemies_array.push(
-        new Enemy({x: current_enemy_x_pos,
-                   y: current_enemy_y_pos,
-                   // adding 2 to make the row grid start at 1 and skip the first goal row
-                   row: current_enemy_row},
-                   regular_enemy_type,
-                   current_enemy_speed)
-      );
-    }
-  }
-
-  // generate special enemies
-
-  // determine how many special enemies to generate, make it a bit rarer
-  var number_of_special_enemies = Math.floor(random_num_in_range(0, enemy_rows-1));
-
-  // generate specified number of special enemies
-  for (i=0; i < number_of_special_enemies; i+=1) {
-    // randomly select a row to have the special enemy within the enemy rows
-    current_enemy_row = Math.floor(random_num_in_range(1, enemy_rows));
-    // generate the x position somewhere in the canvas bounds
-    current_enemy_x_pos = random_num_in_range(0, cols * tile_width);
-    // generate the y position from the current enemy's row
-    current_enemy_y_pos = current_enemy_row * tile_height - enemy_center_y_adjustment;
-    // construct the special enemies and push to enemies array
-    enemies_array.push(
-      new Enemy({x: current_enemy_x_pos,
-                 y: current_enemy_y_pos,
-                 // add 1 to skip the goal row since row numbering starts at 1
-                 row: current_enemy_row + 1},
-                 special_enemy_type)
-    );
-  }
-
-  return enemies_array;
-}
-
-function generate_pickups() {
-  /*
-  Construct randomly selected pickups/powerups on the enemy rows according to
-  item drop rates. Note that this function acts like a dice roll--there's a chance
-  no items will be generated.
-  Args: na
-  Return: na
-  */
-  // init var to store all the constructed pickup objects
-  var pickups = [];
-  // determine how many pickups to try generating
-  var number_of_pickups = Math.floor(random_num_in_range(0, enemy_rows+4));
-  // row location of pickup
-  var pickup_row;
-  // column location of pickup
-  var pickup_col;
-  // init vars for pickup position coordinates
-  var pickup_x_pos;
-  var pickup_y_pos;
-
-  // generate specified number of special enemies
-  for (i=0; i < number_of_pickups; i+=1) {
-    // randomly select a row place the pickup in the enemy rows
-    pickup_row = Math.floor(random_num_in_range(1, enemy_rows));
-    // randomly select a col to place the pickup in
-    pickup_col = Math.floor(random_num_in_range(1, cols));
-    // generate the x position somewhere in the canvas bounds
-    pickup_x_pos = pickup_col * tile_width;
-    // generate the y position from the current enemy's row
-    pickup_y_pos = pickup_row * tile_height;
-    // construct the pickup and push to pickup array
-    pickups.push(
-      new Pickup({x: pickup_x_pos,
-                 y: pickup_y_pos,
-                 // add 1 to skip the goal row
-                 row: pickup_row+1,
-                 col: pickup_col+1})
-    );
-  }
-
-  // remove pickups that are in the same space as other pickups
-  // length-1 because the last item won't have a next item to compare
-  for (i = 0; i < pickups.length-1; i+=1 ) {
-    // inner loop to compare current element with next element
-    for (j = 0; j < pickups.length-1; j+=1) {
-      // if row and col are equal for both elements they are in the same spot
-      if (pickups[i].row === pickups[j+1].row && pickups[i].col === pickups[j+1].col) {
-        // remove the element from the pickups array
-        pickups.splice(i,1);
-      }
-    }
-  }
-
-  return pickups;
-}
-
-function level_reset() {
-  /*
-  Resets the game level so player is back at the beginning and ready
-  to tackle a new board of enemies.
-  Args: na
-  return: na
-  */
-  // clear the previous enemies array
-  allEnemies.length = 0;
-  // regenerate enemies so that they change from previous level
-  allEnemies = generate_enemies();
-  // regenerate pickups
-  pickups = generate_pickups();
-  // if game over reset the lives sprites too
-  if(player.game_over) {
-    // reset player position and stats, but also reset game over stats
-    player.reset(true);
-    // loop through the lives array to reset the sprites
-    for (i=0; i < lives.length; i+=1) {
-      // reset back to the full life sprite in the map
-      lives[i].sprite.pos = [0, 0];
-    }
-  } else {
-    // move player back to start and reset condition
-    player.reset();
-  }
-  // update the rendered level text displayed
-  game_ui_level.text = level_label + player.current_level;
-  // update the rendered score text displayed
-  game_ui_score.text = score_label + player.score;
-
-}
-
-function toggle_message(container_class, message_text, no_subtext, secondary) {
-  /*
-  Toggles the winner message overlay popup.
-  Args: css class for the specific type of message (string)
-        text string to put in the main message text (string),
-        whether the standard subtext should be included (boolean),
-        whether this is a secondary level popup (boolean)
-  Return: none;
-  */
-  // show class is the container class with the on class added
-  var show_class = container_class + ' on';
-
-  // check if this is the secondary popup
-  if (!secondary) {
-    // set popup text to appropriate message content
-    box_message.textContent = message_text;
-    // if no subtext parameter is true clear out the instruction text
-    if (no_subtext) {
-      sub_message.textContent = '';
-    } else {
-      // add the sub text in
-      sub_message.textContent = instruction_text_content;
-    }
-
-    // set popup container class name to visible class if not set
-    // and/or toggle popup visibility by adding on class
-    if (box_container.className !== show_class) {
-      // set container to the on class
-      box_container.className = show_class;
-    // if its a different class or more than just the single class expected
-    } else {
-      // make popup invisible by removing the on class
-      box_container.className = container_class;
-    }
-  } else {
-    // show the secondary box popup
-    // if class isn't equal to on class
-    if (secondary_box_container.className !== show_class) {
-      // set container to the on class
-      secondary_box_container.className = show_class;
-    // if its a different class or more than just the single class expected
-    } else {
-      // remove the on class
-      secondary_box_container.className = container_class;
-    }
-  }
-
-}
-
-function crossfade_canvas_and_reset() {
-  /*
-  Fade's the canvas out then back in again. Resets stuff at certain points
-  Args: na
-  Return: na
-  */
-
-  // set the global alpha transparency from 1 to 0 back to 1ish
-  // using math.sin since it goes up then down then back
-  // multiply by -1 to count downwards
-  // add 0.9 to make the transition actually increment reasonably
-  ctx.globalAlpha = (-1*Math.sin(animation_fade_counter))+0.9;
-  // increase the counter
-  animation_fade_counter += animation_fade_increase;
-
-  // do the resets when stuff is invisible
-  if (ctx.globalAlpha < 0.01) {
-    // reset the level
-    level_reset();
-  }
-
-  // if the global transparency is almost back to full opacity
-  if (ctx.globalAlpha > 0.99) {
-    // reset the counter
-    animation_fade_counter = 0;
-    // set transparency back to full opacity
-    ctx.globalAlpha = 1;
-    // restore player mobility
-    player.immobile = false;
-    // show the current level message
-    toggle_message(popup_level_class, game_ui_level.text, true);
-    setTimeout(function() {
-      // make it go away after a bit
-      toggle_message(popup_level_class, game_ui_level.text, true);
-    }, level_popup_delay);
-    animation_running = false;
-    // exit the animation
-    return;
-  }
-
-  // run recursively
-  requestAnimationFrame(crossfade_canvas_and_reset);
-}
-
-function pause_toggle() {
-  /*
-  Toggles the pause flag off and on. If it's false it switches to true, if true
-  it switches to false.
-  Args: na
-  Return: na
-  */
-  // simple boolean toggler for paused flag
-  paused = !paused;
-  // show the secondary message popup for the pause message
-  toggle_message(secondary_popup_class, '', false, true);
-
-}
 
 /////////////////////////
 // PLAYER INSTANTATION //
@@ -1347,21 +1381,6 @@ var game_ui_level = new Entity({
   font_color: 'rgba(131, 131, 131, 0.54)'
 });
 
-///////////////
-//  PREGAME  //
-///////////////
-
-// show a level indicator at start of first level
-
-window.addEventListener("load", function(event) {
-  // toggle message on
-  toggle_message(popup_level_class, game_ui_level.text, true);
-  setTimeout(function() {
-    // wait before toggling message off
-    toggle_message(popup_level_class, game_ui_level.text, true);
-  }, level_popup_delay);
-});
-
 //////////////
 // CONTROLS //
 //////////////
@@ -1406,6 +1425,13 @@ document.addEventListener('keyup', function(e) {
           // toggle the message popup off
           toggle_message(popup_game_over_class, game_over_text_content);
         }
+      }
+
+      // if we're on a start menu screen allow exiting
+      if (on_start_screen) {
+        // end the start screen by switching off the start screen var
+        on_start_screen = false;
+
       }
 
     }

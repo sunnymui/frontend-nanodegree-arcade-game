@@ -69,11 +69,26 @@ var Engine = (function(global) {
         var now = Date.now();
             dt = (now - lastTime) / 1000.0;
 
+        if (on_start_screen) {
+          // show the start screen
+          start_screen();
         // only run if not currently paused
-        if (!paused){
-        /* Call our update/render functions, pass along the time delta to
-         * our update function since it may be used for smooth animation.
-         */
+        } else if (!paused) {
+          /* Call our update/render functions, pass along the time delta to
+          * our update function since it may be used for smooth animation.*/
+
+          // show the level indicator at start of first level
+          if (first_level){
+            // toggle message on
+            toggle_message(popup_level_class, game_ui_level.text, true);
+            // toggle first level flag so this doesn't show again
+            first_level = false;
+            setTimeout(function() {
+              // wait before toggling message off
+              toggle_message(popup_level_class, game_ui_level.text, true);
+            }, level_popup_delay);
+          }
+
           update(dt);
           render();
         }
@@ -89,16 +104,94 @@ var Engine = (function(global) {
         win.requestAnimationFrame(main);
     }
 
+    function start_screen() {
+      //ctx.drawImage();
+
+      var gradient = ctx.createLinearGradient(0, 0, canvas_width, canvas_height);
+      gradient.addColorStop(0, 'green');
+      gradient.addColorStop(1, 'white');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas_width, canvas_height);
+
+    }
+    /*
+    TODO game menu setting is pseudocodey right now
+
+    var diffuclty = [1,2,3,4] easy, med, hard, insane
+    var selector = new Entity({}); the menu selection arrow
+    var top_option_y_pos = 200;
+    var bottom_option_y_pos = 500;
+    var current_option = 2; // medium
+
+    function menu_cursor_move() {
+      // distance to move selector in pixels
+      var move_dist = 50;
+
+      switch (key_pressed){
+        case 'up':
+          selector.x = clamp(selector.x + move_dist, top_option_y_pos, bottom_option_y_pos);
+          break;
+        case 'down':
+          selector.x = clamp(selector.x - move_dist, top_option_y_pos, bottom_option_y_pos);
+          break;
+      }
+
+    }
+
+    function set_difficulty() {
+      switch (current_option) {
+        case 1:
+          rebuild_world(6);
+          canvas.height = rows * tile_width;
+          break;
+        case 2:
+          rebuild_world(7);
+          canvas.height = rows * tile_width;
+          break;
+        case 3:
+          rebuild_world(8);
+          canvas.height = rows * tile_width;
+          break;
+        case 4:
+          player.lives = 1;
+          lives[player.lives].sprite.pos = [tile_width, 0];
+          rebuild_world(10);
+          canvas.height = rows * tile_width;
+          break;
+      }
+    }
+
+    function rebuild_world(size) {
+      rows = size;
+      canvas.height = rows * tile_width;
+      background = render_background();
+      enemy_rows = rows - 3;
+      player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
+      player_start_position = {
+        x: center_tile,
+        // start the player at the bottom of the rows, adjust position to center sprite
+        // feet on the tile 'ground', adjustment is just to get a perfect centering
+        y: (tile_height * rows) - (full_img_tile_height * 2/3),
+        // adding 1 to make the row grid starting at 1
+        row: rows
+      };
+      level_reset();
+    }
+    */
+
+
     /* This function does some initial setup that should only occur once,
      * particularly setting the lastTime variable that is required for the
      * game loop.
      */
     function init() {
+
         reset();
         lastTime = Date.now();
         // render background once to cache in the background var since it stays the same
         renderBackground();
         main();
+
     }
 
     /* This function is called by main (our game loop) and itself calls all
@@ -338,7 +431,7 @@ var Engine = (function(global) {
         entity_types = pickups;
       } else {
         // create a new array by concatenating enemies and pickups
-        entity_types = allEnemies.concat(pickups);
+        entity_types = pickups;//allEnemies.concat(pickups);
       }
       // array to hold all the entities to check for collisions
       var entities_to_check = canCollide(entity_types);
@@ -470,6 +563,9 @@ var Engine = (function(global) {
      * from within their app.js files.
      */
     global.ctx = ctx;
+    global.canvas = canvas;
+    global.background = background;
+    global.render_background = renderBackground;
     // make reset global to let the game be resettable
     global.game_reset = reset;
 
