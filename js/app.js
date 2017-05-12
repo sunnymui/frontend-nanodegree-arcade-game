@@ -625,7 +625,7 @@ Enemy.prototype.animate_move = function() {
   this.x += this.speed*dt;
 
   // exclude special cases from the standard enemy offscreen check
-  if (this.type !== 'reverse_bug' && this.type !== 'fat bug') {
+  if (this.type !== 'reverse bug' && this.type !== 'fat bug') {
     // check if sprite moved all the way across screen and out of visible canvas
     if (this.x > canvas_width + 100) {
       // reset position back to the beginning but start off screen
