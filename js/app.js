@@ -176,14 +176,14 @@ function generate_enemies() {
     // check if the current row is one of the last for increased difficulty
     if (i < last_rows) {
       // set more enemies in current row if one of the last rows
-      enemies_in_current_row = random_num_in_range(2, hard_max_enemies);
+      enemies_in_current_row = random_num_in_range(1, hard_max_enemies);
       // higher range for the enemy speed
-      current_enemy_speed = Math.floor(random_num_in_range(150, 190));
+      current_enemy_speed = Math.floor(random_num_in_range(120, 190));
     } else {
       // less possible enemies for regular rows
       enemies_in_current_row = random_num_in_range(1, easy_max_enemies);
       // lower range speed for enemies in these rows
-      current_enemy_speed = Math.floor(random_num_in_range(70, 155));
+      current_enemy_speed = Math.floor(random_num_in_range(60, 155));
     }
 
     // calculate the enemy y position by getting the current row's pixel height
@@ -216,7 +216,7 @@ function generate_enemies() {
   // generate special enemies
 
   // determine how many special enemies to generate, make it a bit rarer
-  var number_of_special_enemies = Math.floor(random_num_in_range(0, enemy_rows-1));
+  var number_of_special_enemies = Math.floor(random_num_in_range(1, enemy_rows-1));
 
   // generate specified number of special enemies
   for (i=0; i < number_of_special_enemies; i+=1) {
@@ -709,6 +709,8 @@ var Player = function(start_position, type) {
   this.invulnerable = false;
   // mobility flag to prevent movement when immobile status is triggered
   this.immobile = false;
+  // flag for frozen status condition
+  this.frozen = false;
   // flag for if the goal row has been reached
   this.goal_reached = false;
   // flag if player dies by losing all lives to trigger game over
@@ -724,7 +726,7 @@ var Player = function(start_position, type) {
     // # frames player will be unable to use keyboard movement
     immobile_limit: 70,
     // # milliseconds to wait after goal reached before resetting the level
-    goal_limit: 1400
+    goal_limit: 1400,
   };
 
 };
@@ -985,14 +987,18 @@ Player.prototype.collided = function(entity) {
         // start the new game
         // temp level reset here before implementing the menu
       }
+      // toggle frozen flag if we hit a slow bug
+      if (entity.type === 'slow bug') {
+        this.frozen = true;
+      }
       // set enemy-player collision flag to true since we player got hit
       this.enemy_collided = true;
       // make player invulnerable temporarily to stop 60 collisions/sec from happening
       this.invulnerable = true;
       // stop player from being able to move
       this.immobile = true;
-      // change sprite to collision sprite image animation
-      this.set_collision_sprite();
+      // change sprite to collision sprite image animation for corresponding thing
+      this.set_collision_sprite(entity.type);
     }
 
     if (entity instanceof Pickup) {
@@ -1049,13 +1055,20 @@ Player.prototype.fly_to_goal = function() {
   requestAnimationFrame();
 };
 
-Player.prototype.set_collision_sprite = function() {
+Player.prototype.set_collision_sprite = function(type) {
   /*
   Changes the player sprite to the collision animation sprite
+  Args: entity type (string) - kind of enemy so we can use the right sprites
+  Return: na
   */
   // set speed of animation, higher numbers = slower animation
   this.sprite.speed = 1;
-  // sets the sprites in the map to use as animation frames
+  // if slow type enemy we're colliding with
+  if (type == 'slow bug') {
+    // use the freeze animation sprite row in the map
+    this.sprite.pos = [0,342];
+  }
+  // sets the regular sprites in the map to use as animation frames
   this.sprite.frames = range(0,22);
   this.sprite.once = true;
   this.sprite.final_frame = 22;
@@ -1103,23 +1116,36 @@ Player.prototype.reset_sprite = function() {
 Player.prototype.check_status = function() {
   /*
   Check status conditions of the player instance and do appropriate things for each.
+  Immmobility should be a little shorter than invulnerable to give player time
+  to move.
   */
 
   //// STATUS CONDITIONS ////
 
   // ENEMY COLLIDED WITH PLAYER
 
+  var invulnerable_time_limit = this.timers.invulnerability_limit;
+  var immobile_time_limit = this.timers.immobile_limit;
+
   // check if an enemy collided with player
   if (this.enemy_collided) {
     // increment collision timer
     this.timers.collision += 1;
 
+    // FROZEN
+
+    if (this.frozen) {
+      // increase the status condition time
+      invulnerable_time_limit = immobile_time_limit*3;
+      immobile_time_limit *= 2.6;
+    }
+
     // INVULNERABLE
 
     // if the timer reaches the invulnerability time limit
-    if (this.timers.collision >= this.timers.invulnerability_limit) {
+    if (this.timers.collision >= invulnerable_time_limit) {
       // reset the timer
-      this.timers.collision = 0;
+      // this.timers.collision = 0;
       // make player vulnerable again
       this.invulnerable = false;
       // reset enemy collision flag
@@ -1137,9 +1163,15 @@ Player.prototype.check_status = function() {
     // if immobile limit is reached, turn off immobility unless in a goal row
     // then we stay immobile since we'd be immobile during the win animation
     // or if game over
-    if (this.timers.collision >= this.timers.immobile_limit && !this.goal_reached && !this.game_over) {
+    if (this.timers.collision >= immobile_time_limit && !this.goal_reached && !this.game_over) {
       // let player move again
       this.immobile = false;
+      // remove frozen status condition if player is frozen
+      this.frozen = false;
+    }
+
+    if (this.timers.collision >= invulnerable_time_limit) {
+      this.timers.collision = 0;
     }
   }
 

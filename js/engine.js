@@ -177,6 +177,20 @@ var Engine = (function(global) {
       };
       level_reset();
     }
+
+    function fade_out() {
+      ctx.globalAlpha -= 0.05;
+      if (ctx.globalAlpha <= 0.01) {
+        return;
+      }
+    }
+
+    function fade_in() {
+      ctx.globalAlpha += 0.05;
+      if (ctx.globalAlpha >= 0.99) {
+        return;
+      }
+    }
     */
 
 
@@ -330,7 +344,7 @@ var Engine = (function(global) {
       /*
       Checks if entities are close enough to the player for possible collision.
       If so, add it to the collidable objects array to be returned.
-      Args:
+      Args: array of entity objects to check (array)
       Return: objects that player could possibly collide with (array)
       */
       var collidable_objects = [];
@@ -369,7 +383,7 @@ var Engine = (function(global) {
       Checks if any of the bounds of the first object are within the bounds of the
       second object by using their respective positions and the position of their
       top right and bottom left corners.
-      Args: expects first object and second object to compare.
+      Args: expects first object and second object to compare (obj, obj).
             each object requires this data -
             {
               x: x position on the left edge (integer),
@@ -416,12 +430,12 @@ var Engine = (function(global) {
 
     function checkCollisions() {
       /*
-      check if player collided with any of the collidable objects
-      run the boxcollides function on the player object and compare
+      High level manager of collision checking between player / collidable objects
+      run the boxcollides function on the player object and compares
       with every other entity. no projectiles or enemy on enemy
       collisions to deal with so we can just do player to entity comparisons
-      Args:
-      Return:
+      Args: na
+      Return: na
       */
 
       // var for the different arrays of entities to be checked by as collidable
@@ -431,7 +445,7 @@ var Engine = (function(global) {
         entity_types = pickups;
       } else {
         // create a new array by concatenating enemies and pickups
-        entity_types = pickups;//allEnemies.concat(pickups);
+        entity_types = allEnemies.concat(pickups);
       }
       // array to hold all the entities to check for collisions
       var entities_to_check = canCollide(entity_types);
