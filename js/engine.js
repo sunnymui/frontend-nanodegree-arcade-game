@@ -113,6 +113,11 @@ var Engine = (function(global) {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas_width, canvas_height);
 
+      renderEntity(main_title);
+      renderEntity(main_sub_title);
+      renderEntity(demo);
+      renderEntities(start_screen_elements);
+
     }
     /*
     TODO game menu setting is pseudocodey right now
@@ -316,13 +321,14 @@ var Engine = (function(global) {
     function renderEntity(entity) {
         // save the context to preserve the positioning before translating the ctx
         ctx.save();
-        // move to the entity position
-        ctx.translate(entity.x, entity.y);
         // if entity is text
         if (!entity.sprite) {
+          // use the regular render positioning system relative to the canvas
           // render the text at the current position
           entity.render_text();
         } else {
+          // move rendering context to the entity position
+          ctx.translate(entity.x, entity.y);
           // render the sprite at the current position
           entity.sprite.render(ctx);
         }

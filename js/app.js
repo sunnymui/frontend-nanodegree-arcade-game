@@ -4,6 +4,24 @@
 var paused = false;
 var on_start_screen = true;
 var first_level = true;
+var difficulty = {
+  easy: {
+    label:'Easy',
+    cols: 6
+  },
+  medium:{
+    label:'Normal',
+    cols: 7
+  },
+  hard: {
+    label:'Hard',
+    cols: 8
+  },
+  very_hard: {
+    label:'INSANE',
+    cols: 11
+  }
+};
 
 // playing field and tile sizes
 var rows = 7;
@@ -1387,9 +1405,9 @@ for (i = 0; i < player.lives; i += 1) {
 var game_ui_score = new Entity({
     position: {
       // position them spaced apart in a row
-      x: canvas_width/2,
+      x: canvas_width,
       // top of the canvas
-      y: 17
+      y: 33
     },
     //is_text: true,
     text: score_label + score_text,
@@ -1403,15 +1421,73 @@ var game_ui_score = new Entity({
 var game_ui_level = new Entity({
   position: {
     // position them spaced apart in a row
-    x: 60,
+    x: 110,
     // top of the canvas
-    y: 17
+    y: 33
   },
   //is_text: true,
   text: level_label + level_text,
   font: 'bold 27px Arial',
   font_color: 'rgba(131, 131, 131, 0.54)'
 });
+
+var start_screen_elements = [];
+
+var main_title = new Entity({
+  position: {
+    x: canvas_width/2,
+    y: 107
+  },
+  text: 'SWIM QUEST',
+  font: 'bold 77px Arial',
+  text_align: 'center',
+  stroke_text: true,
+  font_color: 'rgb(32, 137, 201)'
+});
+
+var main_sub_title = new Entity({
+  position: {
+    x: canvas_width/2,
+    y: 167
+  },
+  text: 'Press Enter to Start Game',
+  text_align: 'center',
+  font: '36px Arial',
+  font_color: 'rgb(78, 78, 78)'
+});
+
+var difficulty_x_pos = 0;
+
+for (var key in difficulty) {
+  difficulty_x_pos += 140;
+  start_screen_elements.push(
+    new Entity({
+        position: {
+          x: difficulty_x_pos,
+          y: 267
+        },
+        text: difficulty[key].label,
+        text_align: 'center',
+        font: '20px Arial',
+        font_color: 'rgb(0, 0, 0)'
+    })
+  );
+}
+
+start_screen_elements.push(
+  new Entity({
+        position: {
+          x: canvas_width/2,
+          y: 240
+        },
+        text: 'Select Difficulty With Arrow Keys',
+        text_align: 'center',
+        font: '20px Arial',
+        font_color: 'rgb(0, 0, 0)'
+  })
+);
+
+var demo = new Player(player_start_position, 'boy');
 
 //////////////
 // CONTROLS //
