@@ -28,6 +28,7 @@ var Engine = (function(global) {
     var lastTime;
     // var to store the rendered background img
     var background;
+    var start_background;
 
     //////////////////////////////////////
     // DOM ELEMENT CREATION + INSERTION //
@@ -105,20 +106,70 @@ var Engine = (function(global) {
     }
 
     function start_screen() {
-      //ctx.drawImage();
+      // render the background using the saved, prerendered background image data
+      ctx.putImageData(start_background, 0, 0);
 
-      var gradient = ctx.createLinearGradient(0, 0, canvas_width, canvas_height);
-      gradient.addColorStop(0, 'green');
-      gradient.addColorStop(1, 'white');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas_width, canvas_height);
-
-      renderEntity(main_title);
-      renderEntity(main_sub_title);
       renderEntity(demo);
       renderEntities(start_screen_elements);
 
     }
+
+    function rebuild_world() {
+      // reset the # rows to the corresponding current difficulty
+      rows = difficulty[current_difficulty].rows;
+      // set the canvas height to accomodate the rows
+      canvas.height = rows * tile_width;
+      // rerender the background
+      renderBackground();
+      // reset the enemy rows
+      enemy_rows = rows - 3;
+      // adjust bottom player boundary
+      player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
+      // reposition player start on the new bottom row
+      player_start_position = {
+        x: center_tile,
+        // start the player at the bottom of the rows, adjust position to center sprite
+        // feet on the tile 'ground', adjustment is just to get a perfect centering
+        y: (tile_height * rows) - (full_img_tile_height * 2/3),
+        // adding 1 to make the row grid starting at 1
+        row: rows
+      };
+      // regenerate the level
+      level_reset();
+    }
+
+    function fade_out() {
+      var alpha = (1-a).toString();
+      ctx.fillStyle = 'rgba(0,0,0,'+alpha+')';
+      ctx.fillRect(0,0,canvas_width,canvas_height);
+      canvas.style.opacity = 0;
+      a -= 0.02;
+      if (a < 0.01) {
+        // end the start screen by switching off the start screen var
+        on_start_screen = false;
+        // build the game world with selected difficulty
+        rebuild_world();
+        requestAnimationFrame(fade_in);
+        return;
+      }
+      requestAnimationFrame(fade_out);
+    }
+
+    global.fade_out = fade_out;
+    global.fade_in = fade_in;
+
+    function fade_in() {
+      var alpha = (1-a).toString();
+      ctx.fillStyle = 'rgba(0,0,0,'+alpha+')';
+      ctx.fillRect(0,0,canvas_width,canvas_height);
+      canvas.style.opacity = 1;
+      a += 0.02;
+      if (a >= 0.99) {
+        return;
+      }
+      requestAnimationFrame(fade_in);
+    }
+
     /*
     TODO game menu setting is pseudocodey right now
 
@@ -209,6 +260,8 @@ var Engine = (function(global) {
         lastTime = Date.now();
         // render background once to cache in the background var since it stays the same
         renderBackground();
+        // render the start screen background
+        renderBackground(true);
         main();
 
     }
@@ -241,7 +294,7 @@ var Engine = (function(global) {
         player.update(dt);
     }
 
-    function renderBackground() {
+    function renderBackground(is_start_screen) {
       /* This array holds the relative URL to the image used
        * for that particular row of the game level.
        */
@@ -266,21 +319,27 @@ var Engine = (function(global) {
                * so that we get the benefits of caching these images, since
                * we're using them over and over.
                */
-               // draw the appropriate background tile by checking what row we're on
-               if (row === 0) {
-                 // draw the water at the top
+               if (is_start_screen) {
                  ctx.drawImage(Resources.get(rowImages[0]), col * tile_width, row * tile_height);
-               } else if (row < safe_row) {
-                 // road in the middle
-                 ctx.drawImage(Resources.get(rowImages[1]), col * tile_width, row * tile_height);
+                 start_background = ctx.getImageData(0, 0, canvas.width, canvas.height);
                } else {
-                 // grass on the bottom
-                 ctx.drawImage(Resources.get(rowImages[2]), col * tile_width, row * tile_height);
+                 // draw the appropriate background tile by checking what row we're on
+                 if (row === 0) {
+                   // draw the water at the top
+                   ctx.drawImage(Resources.get(rowImages[0]), col * tile_width, row * tile_height);
+                 } else if (row < safe_row) {
+                   // road in the middle
+                   ctx.drawImage(Resources.get(rowImages[1]), col * tile_width, row * tile_height);
+                 } else {
+                   // grass on the bottom
+                   ctx.drawImage(Resources.get(rowImages[2]), col * tile_width, row * tile_height);
+                 }
+                // save the background image data to avoid a complete redraw in every frame
+                background = ctx.getImageData(0, 0, canvas.width, canvas.height);
                }
           }
       }
-      // save the background image data to avoid a complete redraw in every frame
-      background = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
     }
 
     /* This function initially draws the "game level", it will then call
@@ -573,8 +632,15 @@ var Engine = (function(global) {
         'images/Key.png',
         // ui
         'images/Heart-map.png',
-        // player
-        'images/char-boy-map.png'
+        // player characters
+        'images/char-boy-map.png',
+        'images/char-cat-girl.png',
+        'images/char-horn-girl.png',
+        'images/char-pink-girl.png',
+        'images/char-princess-girl.png',
+        // start screen
+        'images/Selector.png',
+        'images/title.png'
     ]);
     Resources.onReady(init);
 
@@ -584,8 +650,7 @@ var Engine = (function(global) {
      */
     global.ctx = ctx;
     global.canvas = canvas;
-    global.background = background;
-    global.render_background = renderBackground;
+    global.rebuild_world = rebuild_world;
     // make reset global to let the game be resettable
     global.game_reset = reset;
 

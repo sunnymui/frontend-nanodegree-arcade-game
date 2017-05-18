@@ -1,27 +1,15 @@
 // general game state setting data, sizes in pixels
 
 // game state
+
+// game is paused?
 var paused = false;
+// are we on the starting difficulty selection screen
 var on_start_screen = true;
+// is this the first level of the current game
 var first_level = true;
-var difficulty = {
-  easy: {
-    label:'Easy',
-    cols: 6
-  },
-  medium:{
-    label:'Normal',
-    cols: 7
-  },
-  hard: {
-    label:'Hard',
-    cols: 8
-  },
-  very_hard: {
-    label:'INSANE',
-    cols: 11
-  }
-};
+// current difficulty, ranges from 0 to 3 for easy to very hard
+var current_difficulty = 1;
 
 // playing field and tile sizes
 var rows = 7;
@@ -59,6 +47,42 @@ var player_boundary_top = -31;
 // the little undeground part on the bottom row
 var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
 
+// start screen ui and text
+
+// object containing difficulty information
+var difficulty = [{
+    id: 1,
+    label:'Easy',
+    rows: 6,
+    sprite: 'images/char-pink-girl.png'
+  },{
+    id: 2,
+    label:'Normal',
+    rows: 7,
+    sprite: 'images/char-cat-girl.png'
+  },{
+    id: 3,
+    label:'Hard',
+    rows: 8,
+    sprite: 'images/char-horn-girl.png'
+  },{
+    id: 4,
+    label:'DIEHARD',
+    rows: 12,
+    sprite: 'images/char-princess-girl.png'
+}];
+
+// where to start placing elements
+var start_element_top_y_pos = 200;
+
+// start screen title image dimensions
+var title_width = 550;
+var title_height = 250;
+
+// text for various elements
+var start_game_text = 'Press ENTER to Start Game';
+var select_difficulty_text = 'Select Difficulty with ARROW Keys';
+
 // game ui and messages
 
 var popup_overlay_class = 'popup_overlay';
@@ -82,6 +106,7 @@ var score_text = '0';
 // level text
 var level_label = 'LEVEL ';
 var level_text = '1';
+
 // time in ms before the level popup is hidden
 var level_popup_delay = 1200;
 
@@ -90,6 +115,7 @@ var level_popup_delay = 1200;
 // counters for incrementing loops
 var i;
 var j;
+var a;
 
 // animation vars
 
@@ -509,9 +535,10 @@ Entity.prototype.render_text = function() {
   // if this is stroke text use the stroketext drawing functions
   if (this.stroke_text) {
     ctx.strokeStyle = this.stroke_color;
+    ctx.lineWidth = 3;
     // do the actual drawing
-    ctx.fillText(this.text, this.x, this.y);
     ctx.strokeText(this.text, this.x, this.y);
+    ctx.fillText(this.text, this.x, this.y);
   } else {
     // draw regular text
     ctx.fillText(this.text, this.x, this.y);
@@ -1390,11 +1417,6 @@ for (i = 0; i < player.lives; i += 1) {
         x: 10 + i*25,
         // top of the canvas
         y: 0
-      },
-      // no hitbox for collision detection needed
-      size: {
-        width: 0,
-        height: 0
       }
     })
   );
@@ -1431,59 +1453,130 @@ var game_ui_level = new Entity({
   font_color: 'rgba(131, 131, 131, 0.54)'
 });
 
+
+/////////////////////////
+// START INSTANTATION  //
+/////////////////////////
+
+// array to store all the start screen elements
 var start_screen_elements = [];
-
-var main_title = new Entity({
-  position: {
-    x: canvas_width/2,
-    y: 107
-  },
-  text: 'SWIM QUEST',
-  font: 'bold 77px Arial',
-  text_align: 'center',
-  stroke_text: true,
-  font_color: 'rgb(32, 137, 201)'
-});
-
-var main_sub_title = new Entity({
-  position: {
-    x: canvas_width/2,
-    y: 167
-  },
-  text: 'Press Enter to Start Game',
-  text_align: 'center',
-  font: '36px Arial',
-  font_color: 'rgb(78, 78, 78)'
-});
-
+// difficulty elements x position
 var difficulty_x_pos = 0;
+var difficulty_x_padding = 141;
+var difficulty_x_min_border = difficulty_x_padding-tile_width/2;
+var difficulty_x_max_border = (difficulty_x_padding*4)-tile_width/2;
 
-for (var key in difficulty) {
-  difficulty_x_pos += 140;
+// instantiate the selector with a var for use in movement
+var selector =  new Entity({
+                  // create the sprite for the selector graphic
+                  sprite: new Sprite('images/Selector.png',
+                                     [0,0],
+                                     // size settings array
+                                     [tile_width,
+                                      full_img_tile_height]),
+                  position: {
+                    // position selector at normal difficulty aka 2nd item
+                    x: (difficulty_x_padding * 2) - tile_width/2,
+                    y: start_element_top_y_pos+10
+                  }
+                });
+
+// push selector element to start screen array
+start_screen_elements.push(selector);
+
+// generate the difficulty label elements
+for (i = 0; i < difficulty.length; i += 1) {
+  // horizontal space in between difficulty elements
+  difficulty_x_pos += difficulty_x_padding;
+
+  // push difficulty labels to start screen array
   start_screen_elements.push(
     new Entity({
         position: {
           x: difficulty_x_pos,
-          y: 267
+          y: start_element_top_y_pos+210
         },
-        text: difficulty[key].label,
+        text: difficulty[i].label,
         text_align: 'center',
-        font: '20px Arial',
-        font_color: 'rgb(0, 0, 0)'
+        font: 'bold 24px Arial',
+        font_color: '#fff'
+    })
+  );
+
+  // push difficulty characters to start screen array
+  start_screen_elements.push(
+    new Entity({
+        // create the sprite for the character graphic
+        sprite: new Sprite(difficulty[i].sprite,
+                           [0,0],
+                           // size settings array
+                           [tile_width,
+                            full_img_tile_height]),
+        position: {
+          x: difficulty_x_pos - tile_width/2,
+          y: start_element_top_y_pos + 10
+        }
     })
   );
 }
 
 start_screen_elements.push(
   new Entity({
+    // create the sprite for the lives graphic
+    sprite: new Sprite('images/title.png',
+                       // starting point in the sprite sheet
+                       [0,0],
+                       // size settings array
+                       [title_width,
+                        title_height],
+                        // speed
+                        6,
+                        // frames array
+                        range(0,18),
+                        // direction of frames
+                        'horizontal',
+                        // play once
+                        true,
+                        // final frame
+                        18),
+    position: {
+      // center the title
+      x: canvas_width/2 - title_width/2,
+      // move it above the top
+      y: start_element_top_y_pos-230
+    }
+  })
+);
+
+// difficulty selection instruction text
+start_screen_elements.push(
+  new Entity({
         position: {
           x: canvas_width/2,
-          y: 240
+          y: start_element_top_y_pos+40
         },
-        text: 'Select Difficulty With Arrow Keys',
+        text: select_difficulty_text,
         text_align: 'center',
         font: '20px Arial',
-        font_color: 'rgb(0, 0, 0)'
+        font_color: '#fff',
+        stroke_text: true,
+        stroke_color: '#000'
+  })
+);
+
+// start game instruction text
+start_screen_elements.push(
+  new Entity({
+    position: {
+      x: canvas_width/2,
+      y: start_element_top_y_pos+260
+    },
+    text: start_game_text,
+    text_align: 'center',
+    font: '20px Arial',
+    font_color: '#fff',
+    stroke_text: true,
+    stroke_color: '#000'
   })
 );
 
@@ -1537,9 +1630,12 @@ document.addEventListener('keyup', function(e) {
 
       // if we're on a start menu screen allow exiting
       if (on_start_screen) {
-        // end the start screen by switching off the start screen var
-        on_start_screen = false;
-
+        a = 1;
+        requestAnimationFrame(fade_out);
+        // // end the start screen by switching off the start screen var
+        // on_start_screen = false;
+        // // build the game world with selected difficulty
+        // rebuild_world();
       }
 
     }
@@ -1551,15 +1647,30 @@ document.addEventListener('keyup', function(e) {
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
 
-      // update player's current row position
+      // handle difficulty selector movement on start screen
+      if (on_start_screen) {
+        // move left by substracting x in the amount items are spaced apart
+        if (key_pressed === 'left') {
+          // move left by substracting x in the amount items are spaced apart
+          selector.x = clamp(selector.x - difficulty_x_padding, difficulty_x_min_border, difficulty_x_max_border);
+          // set the current difficulty to the corresponding value
+          current_difficulty = clamp(current_difficulty-1, 0, 3);
+        } else if (key_pressed === 'right') {
+          // move right by adding to x in the amount items are spaced apart
+          selector.x = clamp(selector.x + difficulty_x_padding, difficulty_x_min_border, difficulty_x_max_border);
+          // set current difficulty to corresponding value
+          current_difficulty = clamp(current_difficulty+1, 0, 3);
+        }
+      } else {
+        // call the player movement animation which handles player movement
+        // checks key_pressed value from this outer scope for movement direction
+        requestAnimationFrame(function() {
+          // passing this in anonymous function lets the correct context
+          // of player be used instead of window
+          player.animate_player_move();
+        });
+      }
 
-      // call the player movement animation which handles player movement
-      // checks key_pressed value from this outer scope for movement direction
-      requestAnimationFrame(function() {
-        // passing this in anonymous function lets the correct context
-        // of player be used instead of window
-        player.animate_player_move();
-      });
     }
 
 });
@@ -1567,7 +1678,11 @@ document.addEventListener('keyup', function(e) {
 // check if user tabs away from the window
 document.addEventListener("visibilitychange", function() {
   // if tab is hidden and not already paused or the other endgame popups arent on
-  if (document.hidden && !paused && !player.goal_reached && !player.game_over) {
+  if (document.hidden &&
+      !paused &&
+      !player.goal_reached &&
+      !player.game_over &&
+      !on_start_screen) {
     // pause the game
     pause_toggle();
   }
