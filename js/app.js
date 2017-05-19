@@ -115,7 +115,6 @@ var level_popup_delay = 1200;
 // counters for incrementing loops
 var i;
 var j;
-var a;
 
 // animation vars
 
@@ -361,6 +360,10 @@ function level_reset() {
       // reset back to the full life sprite in the map
       lives[i].sprite.pos = [0, 0];
     }
+    // clear out the excess canvas bg
+    ctx.clearRect(0,0,canvas_width, rows * tile_width);
+    // fade out canvas
+    fade_out(true);
   } else {
     // move player back to start and reset condition
     player.reset();
@@ -450,12 +453,15 @@ function crossfade_canvas_and_reset() {
     ctx.globalAlpha = 1;
     // restore player mobility
     player.immobile = false;
-    // show the current level message
-    toggle_message(popup_level_class, game_ui_level.text, true);
-    setTimeout(function() {
-      // make it go away after a bit
+    // don't show level indicator after transitioning back to start screen
+    if (!on_start_screen) {
+      // show the current level message
       toggle_message(popup_level_class, game_ui_level.text, true);
-    }, level_popup_delay);
+      setTimeout(function() {
+        // make it go away after a bit
+        toggle_message(popup_level_class, game_ui_level.text, true);
+      }, level_popup_delay);
+    }
     animation_running = false;
     // exit the animation
     return;
@@ -1028,9 +1034,6 @@ Player.prototype.collided = function(entity) {
         this.immobile = true;
         // prevent typical collision behavior by exiting function
         return;
-        // go to new game menu
-        // start the new game
-        // temp level reset here before implementing the menu
       }
       // toggle frozen flag if we hit a slow bug
       if (entity.type === 'slow bug') {
@@ -1602,7 +1605,10 @@ document.addEventListener('keyup', function(e) {
     };
 
     // p for pause as long as not goal reached or game over
-    if (e.keyCode === p_key && !player.goal_reached && !player.game_over) {
+    if (e.keyCode === p_key &&
+       !player.goal_reached &&
+       !player.game_over &&
+       !on_start_screen) {
       // toggle the pause flag
       pause_toggle();
     }
@@ -1630,12 +1636,8 @@ document.addEventListener('keyup', function(e) {
 
       // if we're on a start menu screen allow exiting
       if (on_start_screen) {
-        a = 1;
-        requestAnimationFrame(fade_out);
-        // // end the start screen by switching off the start screen var
-        // on_start_screen = false;
-        // // build the game world with selected difficulty
-        // rebuild_world();
+        // fade out the canvas
+        fade_out();
       }
 
     }

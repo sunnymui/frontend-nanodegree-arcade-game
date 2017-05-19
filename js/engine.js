@@ -138,124 +138,39 @@ var Engine = (function(global) {
       level_reset();
     }
 
-    function fade_out() {
-      var alpha = (1-a).toString();
-      ctx.fillStyle = 'rgba(0,0,0,'+alpha+')';
-      ctx.fillRect(0,0,canvas_width,canvas_height);
+
+    function fade_out(from_in_game) {
+      // set canvas opacity to 0 to let css transition it out
       canvas.style.opacity = 0;
-      a -= 0.02;
-      if (a < 0.01) {
-        // end the start screen by switching off the start screen var
-        on_start_screen = false;
+      // wait 1s since that's how long our css transition time is
+      setTimeout(function(){
+        if (from_in_game) {
+          // take player back to the start screen
+          on_start_screen = true;
+        } else {
+          // end start screen by switching off the start screen var
+          on_start_screen = false;
+        }
         // build the game world with selected difficulty
         rebuild_world();
-        requestAnimationFrame(fade_in);
-        return;
-      }
-      requestAnimationFrame(fade_out);
+        // fade game canvas back in
+        fade_in();
+      }, 1000);
     }
 
     global.fade_out = fade_out;
     global.fade_in = fade_in;
 
     function fade_in() {
-      var alpha = (1-a).toString();
-      ctx.fillStyle = 'rgba(0,0,0,'+alpha+')';
-      ctx.fillRect(0,0,canvas_width,canvas_height);
+      // set opacity back to full to allow css transition to work
       canvas.style.opacity = 1;
-      a += 0.02;
-      if (a >= 0.99) {
-        return;
-      }
-      requestAnimationFrame(fade_in);
     }
 
-    /*
-    TODO game menu setting is pseudocodey right now
-
-    var diffuclty = [1,2,3,4] easy, med, hard, insane
-    var selector = new Entity({}); the menu selection arrow
-    var top_option_y_pos = 200;
-    var bottom_option_y_pos = 500;
-    var current_option = 2; // medium
-
-    function menu_cursor_move() {
-      // distance to move selector in pixels
-      var move_dist = 50;
-
-      switch (key_pressed){
-        case 'up':
-          selector.x = clamp(selector.x + move_dist, top_option_y_pos, bottom_option_y_pos);
-          break;
-        case 'down':
-          selector.x = clamp(selector.x - move_dist, top_option_y_pos, bottom_option_y_pos);
-          break;
-      }
-
-    }
-
-    function set_difficulty() {
-      switch (current_option) {
-        case 1:
-          rebuild_world(6);
-          canvas.height = rows * tile_width;
-          break;
-        case 2:
-          rebuild_world(7);
-          canvas.height = rows * tile_width;
-          break;
-        case 3:
-          rebuild_world(8);
-          canvas.height = rows * tile_width;
-          break;
-        case 4:
-          player.lives = 1;
-          lives[player.lives].sprite.pos = [tile_width, 0];
-          rebuild_world(10);
-          canvas.height = rows * tile_width;
-          break;
-      }
-    }
-
-    function rebuild_world(size) {
-      rows = size;
-      canvas.height = rows * tile_width;
-      background = render_background();
-      enemy_rows = rows - 3;
-      player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
-      player_start_position = {
-        x: center_tile,
-        // start the player at the bottom of the rows, adjust position to center sprite
-        // feet on the tile 'ground', adjustment is just to get a perfect centering
-        y: (tile_height * rows) - (full_img_tile_height * 2/3),
-        // adding 1 to make the row grid starting at 1
-        row: rows
-      };
-      level_reset();
-    }
-
-    function fade_out() {
-      ctx.globalAlpha -= 0.05;
-      if (ctx.globalAlpha <= 0.01) {
-        return;
-      }
-    }
-
-    function fade_in() {
-      ctx.globalAlpha += 0.05;
-      if (ctx.globalAlpha >= 0.99) {
-        return;
-      }
-    }
-    */
-
-
+    function init() {
     /* This function does some initial setup that should only occur once,
      * particularly setting the lastTime variable that is required for the
      * game loop.
      */
-    function init() {
-
         reset();
         lastTime = Date.now();
         // render background once to cache in the background var since it stays the same
@@ -655,3 +570,29 @@ var Engine = (function(global) {
     global.game_reset = reset;
 
 })(this);
+
+///////////////
+// PRELOADER //
+///////////////
+
+// get the #preloader dom element
+var preloader = document.getElementById('preloader');
+// get the .main dom element
+var main_div = document.getElementsByClassName('main');
+// set the main div to display none so there's no vertical scrollbar
+main_div[0].style.display = 'none';
+
+// fade in the canvas
+window.onload = function() {
+  // hide the loader overlay by moving it up, allows for css transition
+  preloader.style.transform = 'translateY(-100em)';
+  // make height 0 to allow canvas transition upwards from bottom
+  preloader.style.height = 0;
+  // delay taking it out of the document flow to allow transition to play
+  window.setTimeout(function(){
+    preloader.style.display = 'none';
+  }, 1100);
+  main_div[0].removeAttribute('style');
+  // make the canvas visible
+  canvas.style.opacity = 1;
+};
