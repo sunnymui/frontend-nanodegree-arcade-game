@@ -82,7 +82,7 @@ h3 {
 }
 
 h4 {
-  font-size: 1em;
+  font-size: 0.9em;
 }
 
 body {
@@ -125,7 +125,6 @@ canvas {
     margin: auto;
     color: #f3f3f3;
     font-weight: 100;
-    font-style: italic;
 }
 
 #preloader .animation {

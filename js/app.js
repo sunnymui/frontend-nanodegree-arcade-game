@@ -49,6 +49,11 @@ var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
 
 // start screen ui and text
 
+// tracker for selector animation and moved distance so far
+var selector_moved_distance = 0;
+// flag for if the selector is currently in motion
+var selector_is_moving = false;
+
 // object containing difficulty information
 var difficulty = [{
     id: 1,
@@ -72,7 +77,7 @@ var difficulty = [{
     sprite: 'images/char-princess-girl.png'
 }];
 
-// where to start placing elements
+// where to start placing start screen elements
 var start_element_top_y_pos = 200;
 
 // start screen title image dimensions
@@ -170,9 +175,9 @@ Return: array of length n containing values of each integer from start to end
     return number_array;
 }
 
-// ================
-// Game Functions
-// ================
+// ============================
+// Entity Generation Functions
+// ============================
 
 // putting the enemy construction loop in a function for ease of resetting the level
 function generate_enemies() {
@@ -338,6 +343,52 @@ function generate_pickups() {
   return pickups;
 }
 
+// ============================
+// General Game Functions
+// ============================
+
+function animate_selector_move() {
+/*
+Animates the selector sprite on the start screen when keyboard input
+has been taken in the outer scope. Didn't pass it as an arg b/c
+requestanimationframe keeps a function from being passed with args.
+
+Args: na, but depends on key_pressed (string) being defined in outer scope
+Return: na
+*/
+  var speed = difficulty_x_padding/4;
+  // move left by substracting x in the amount items are spaced apart
+  if (key_pressed === 'left') {
+    // add to the moved distance tracker
+    selector_moved_distance += speed;
+    // move left by substracting x in the amount items are spaced apart
+    selector.x = clamp(selector.x - speed, difficulty_x_min_border, difficulty_x_max_border);
+  } else if (key_pressed === 'right') {
+    // add to the moved distance tracker
+    selector_moved_distance += speed;
+    // move right by adding to x in the amount items are spaced apart
+    selector.x = clamp(selector.x + speed, difficulty_x_min_border, difficulty_x_max_border);
+  }
+  // exit out when we've moved distance to the next difficulty label
+  if (selector_moved_distance === difficulty_x_padding) {
+    // reset moving and moved distance tracker
+    selector_is_moving = false;
+    selector_moved_distance = 0;
+
+    // set corresponding current difficulty to movement direction
+    if (key_pressed === 'left') {
+      // set the current difficulty to the corresponding value
+      current_difficulty = clamp(current_difficulty-1, 0, 3);
+    } else if (key_pressed === 'right') {
+      // set current difficulty to corresponding value
+      current_difficulty = clamp(current_difficulty+1, 0, 3);
+    }
+    // exit animation
+    return;
+  }
+  requestAnimationFrame(animate_selector_move);
+}
+
 function level_reset() {
   /*
   Resets the game level so player is back at the beginning and ready
@@ -422,6 +473,30 @@ function toggle_message(container_class, message_text, no_subtext, secondary) {
     }
   }
 
+}
+
+function fade_out(from_in_game) {
+  // set canvas opacity to 0 to let css transition it out
+  canvas.style.opacity = 0;
+  // wait 1s since that's how long our css transition time is
+  setTimeout(function(){
+    if (from_in_game) {
+      // take player back to the start screen
+      on_start_screen = true;
+    } else {
+      // end start screen by switching off the start screen var
+      on_start_screen = false;
+    }
+    // build the game world with selected difficulty
+    rebuild_world();
+    // fade game canvas back in
+    fade_in();
+  }, 1000);
+}
+
+function fade_in() {
+  // set opacity back to full to allow css transition to work
+  canvas.style.opacity = 1;
 }
 
 function crossfade_canvas_and_reset() {
@@ -523,6 +598,13 @@ Return: constructor returned entity (object)
     this.stroke_color = settings.stroke_color || 'white';
     // text alignment
     this.text_align = settings.text_align || 'start';
+    // blinking text
+    this.blink = settings.blink || false;
+    // blink time limit ie time between blinks
+    this.blink_time_limit = 40;
+    // blink timer
+    this.blink_timer = 0;
+
   }
   // sets the horizontal position of the hitbox within the sprite img,
   // basically how far in px from the left edge of the image to put the hitbox
@@ -535,8 +617,24 @@ Entity.prototype.render = function() {
 };
 
 Entity.prototype.render_text = function() {
+  // check if this is blinking text
+  if (this.blink) {
+    // add another count to the timer
+    this.blink_timer += 1;
+    // if blink timer is less than the time limit
+    if (this.blink_timer < this.blink_time_limit) {
+      // end the function early to not render the text
+      return;
+    } else if (this.blink_timer > this.blink_time_limit*2) {
+      // if we've reached the blink time limit then reset timer
+      // and let the text rendering continue unabated
+      this.blink_timer = 0;
+    }
+  }
+  // set the text styles
   ctx.fillStyle = this.font_color;
   ctx.font = this.font;
+  // align the text according to input settings
   ctx.textAlign = this.text_align;
   // if this is stroke text use the stroketext drawing functions
   if (this.stroke_text) {
@@ -850,7 +948,7 @@ Return: none
   }
 
   // store reference to this as this Player instance in the outer scope
-  // since request animation frame changes has window as the context
+  // since request animation frame has window as the context
   var self = this;
   // run recursive animation loop and store id for canceling animation if needed
   var request_id = requestAnimationFrame(function() {
@@ -1579,7 +1677,8 @@ start_screen_elements.push(
     font: '20px Arial',
     font_color: '#fff',
     stroke_text: true,
-    stroke_color: '#000'
+    stroke_color: '#000',
+    blink: true
   })
 );
 
@@ -1644,25 +1743,20 @@ document.addEventListener('keyup', function(e) {
 
     // only run the animation if an allowed key was pressed
     // disallow keypress being passed to movement if immobile
-    // or if already in a movement action
-    if (e.keyCode in allowedKeys && !player.immobile && !player.moving && !paused) {
+    // or if already in a movement action so current move animation
+    // completes instead of reversing midway
+    if (e.keyCode in allowedKeys &&
+       !player.immobile &&
+       !player.moving &&
+       !paused &&
+       !selector_is_moving) {
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
 
       // handle difficulty selector movement on start screen
       if (on_start_screen) {
-        // move left by substracting x in the amount items are spaced apart
-        if (key_pressed === 'left') {
-          // move left by substracting x in the amount items are spaced apart
-          selector.x = clamp(selector.x - difficulty_x_padding, difficulty_x_min_border, difficulty_x_max_border);
-          // set the current difficulty to the corresponding value
-          current_difficulty = clamp(current_difficulty-1, 0, 3);
-        } else if (key_pressed === 'right') {
-          // move right by adding to x in the amount items are spaced apart
-          selector.x = clamp(selector.x + difficulty_x_padding, difficulty_x_min_border, difficulty_x_max_border);
-          // set current difficulty to corresponding value
-          current_difficulty = clamp(current_difficulty+1, 0, 3);
-        }
+        selector_is_moving = true;
+        animate_selector_move();
       } else {
         // call the player movement animation which handles player movement
         // checks key_pressed value from this outer scope for movement direction

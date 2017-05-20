@@ -138,34 +138,6 @@ var Engine = (function(global) {
       level_reset();
     }
 
-
-    function fade_out(from_in_game) {
-      // set canvas opacity to 0 to let css transition it out
-      canvas.style.opacity = 0;
-      // wait 1s since that's how long our css transition time is
-      setTimeout(function(){
-        if (from_in_game) {
-          // take player back to the start screen
-          on_start_screen = true;
-        } else {
-          // end start screen by switching off the start screen var
-          on_start_screen = false;
-        }
-        // build the game world with selected difficulty
-        rebuild_world();
-        // fade game canvas back in
-        fade_in();
-      }, 1000);
-    }
-
-    global.fade_out = fade_out;
-    global.fade_in = fade_in;
-
-    function fade_in() {
-      // set opacity back to full to allow css transition to work
-      canvas.style.opacity = 1;
-    }
-
     function init() {
     /* This function does some initial setup that should only occur once,
      * particularly setting the lastTime variable that is required for the
