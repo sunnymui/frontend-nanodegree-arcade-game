@@ -169,6 +169,10 @@
               if (this.once && this.frame_counter >= max) {
                   this.done = true;
                   frame = this.final_frame;
+              } else if (this.frame_counter >= max) {
+                  // reset back to play from beginning
+                  this.frame_counter = 0;
+                  frame = 0;
               }
           }
           else {

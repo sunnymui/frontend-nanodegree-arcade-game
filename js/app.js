@@ -2,7 +2,7 @@
 
 // game state
 
-// game is paused?
+// is game paused?
 var paused = false;
 // are we on the starting difficulty selection screen
 var on_start_screen = true;
@@ -33,6 +33,8 @@ var canvas_height = rows * tile_width;
 var bottom_underground = 31;
 // init delta time to make timing equal across different performing browsers
 var dt;
+// initialize a var to store the allowed key that was pressed by user
+var key_pressed;
 
 // playing field boundaries keep the player from leaving the canvas
 
@@ -356,7 +358,9 @@ requestanimationframe keeps a function from being passed with args.
 Args: na, but depends on key_pressed (string) being defined in outer scope
 Return: na
 */
+  // how fast the selector should move per frame
   var speed = difficulty_x_padding/4;
+
   // move left by substracting x in the amount items are spaced apart
   if (key_pressed === 'left') {
     // add to the moved distance tracker
@@ -370,7 +374,7 @@ Return: na
     selector.x = clamp(selector.x + speed, difficulty_x_min_border, difficulty_x_max_border);
   }
   // exit out when we've moved distance to the next difficulty label
-  if (selector_moved_distance === difficulty_x_padding) {
+  if (selector_moved_distance >= difficulty_x_padding) {
     // reset moving and moved distance tracker
     selector_is_moving = false;
     selector_moved_distance = 0;
@@ -411,10 +415,6 @@ function level_reset() {
       // reset back to the full life sprite in the map
       lives[i].sprite.pos = [0, 0];
     }
-    // clear out the excess canvas bg
-    ctx.clearRect(0,0,canvas_width, rows * tile_width);
-    // fade out canvas
-    fade_out(true);
   } else {
     // move player back to start and reset condition
     player.reset();
@@ -475,33 +475,47 @@ function toggle_message(container_class, message_text, no_subtext, secondary) {
 
 }
 
-function fade_out(from_in_game) {
+function fade_out_rebuild_fade_in(from_in_game) {
+  /*
+  Sets the canvas opacity to 0 to it becomes transparent. Depends on
+  a CSS3 transition style to be defined for the animation heavy lifting.
+  Also rebuilds the game world and fades back in after a set time.
+  Args: from_in_game (boolean) - whether we're coming from in game, which
+  means we have to kick the player back out to the start screen
+  Returns: na
+  */
+  // how long to wait until the fade in function is run
+  var fade_back_in_wait_time = 1000;
+
   // set canvas opacity to 0 to let css transition it out
   canvas.style.opacity = 0;
   // wait 1s since that's how long our css transition time is
   setTimeout(function(){
-    if (from_in_game) {
-      // take player back to the start screen
-      on_start_screen = true;
-    } else {
-      // end start screen by switching off the start screen var
-      on_start_screen = false;
-    }
+    // toggle start screen flag, back to start from in game or off otherwise
+    on_start_screen = !on_start_screen;
     // build the game world with selected difficulty
     rebuild_world();
     // fade game canvas back in
     fade_in();
-  }, 1000);
+  }, fade_back_in_wait_time);
 }
 
 function fade_in() {
+  /*
+  Sets the canvas opacity back to non transparent so the css transition
+  can work its animation.
+  Args: na
+  Return: na
+  */
   // set opacity back to full to allow css transition to work
   canvas.style.opacity = 1;
 }
 
 function crossfade_canvas_and_reset() {
   /*
-  Fade's the canvas out then back in again. Resets stuff at certain points
+  Fade's the canvas elements out then back in again. Resets the level when
+  the canvas is transparent then fades everything back in and displays a
+  current level popup.
   Args: na
   Return: na
   */
@@ -1491,6 +1505,7 @@ var allEnemies = generate_enemies();
 // PICKUP INSTANTIATION //
 //////////////////////////
 
+// array to store all the pickup instances
 var pickups = generate_pickups();
 
 /////////////////////////
@@ -1532,7 +1547,6 @@ var game_ui_score = new Entity({
       // top of the canvas
       y: 33
     },
-    //is_text: true,
     text: score_label + score_text,
     font: 'bold 27px Arial',
     stroke_text: true,
@@ -1548,12 +1562,25 @@ var game_ui_level = new Entity({
     // top of the canvas
     y: 33
   },
-  //is_text: true,
   text: level_label + level_text,
   font: 'bold 27px Arial',
   font_color: 'rgba(131, 131, 131, 0.54)'
 });
 
+// create controls text instructions
+
+var instructions = new Entity({
+    position: {
+      // position them spaced apart in a row
+      x: canvas_width/2,
+      // top of the canvas
+      y: canvas_height - 5
+    },
+    text: 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  Continue: Enter',
+    font: '18px Arial',
+    font_color: '#444',
+    text_align: 'center'
+});
 
 /////////////////////////
 // START INSTANTATION  //
@@ -1623,7 +1650,7 @@ for (i = 0; i < difficulty.length; i += 1) {
 
 start_screen_elements.push(
   new Entity({
-    // create the sprite for the lives graphic
+    // create the sprite for the title graphic
     sprite: new Sprite('images/title.png',
                        // starting point in the sprite sheet
                        [0,0],
@@ -1682,14 +1709,52 @@ start_screen_elements.push(
   })
 );
 
-var demo = new Player(player_start_position, 'boy');
+var demo_width = 500;
+var demo_height = 175;
+// var demo_imgs = 6;
+//
+// var demo = [];
+//
+// for (i=1; i > demo_imgs; i+=1) {
+//   demo.push(new Entity({
+//     // create the sprite for the lives graphic
+//     sprite: new Sprite('images/brotip'+i+'.png',
+//                        // starting point in the sprite sheet
+//                        [0,0],
+//                        // size settings array
+//                        [demo_width,
+//                         demo_height]),
+//     position: {
+//       x: canvas_width/2-demo_width/2 + i*300,
+//       y: start_element_top_y_pos+280
+//     }
+//   }));
+// }
+
+var demo = new Entity({
+  // create the sprite for the lives graphic
+  sprite: new Sprite('images/brotips.png',
+                     // starting point in the sprite sheet
+                     [0,0],
+                     // size settings array
+                     [demo_width,
+                      demo_height],
+                      // speed
+                      20,
+                      // frames array
+                      range(0,81),
+                      // direction of frames
+                      'vertical'),
+  position: {
+    x: canvas_width/2-demo_width/2,
+    y: start_element_top_y_pos+280
+  }
+});
 
 //////////////
 // CONTROLS //
 //////////////
 
-// initialize a var to store the allowed key that was pressed by user
-var key_pressed;
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
 document.addEventListener('keyup', function(e) {
@@ -1730,13 +1795,20 @@ document.addEventListener('keyup', function(e) {
         if (player.game_over) {
           // toggle the message popup off
           toggle_message(popup_game_over_class, game_over_text_content);
+          // fade out canvas
+          fade_out_rebuild_fade_in(true);
+          // set difficulty back to normal so canvas height will be normal
+          // when rebuild_world runs and excess canvas will be cut off
+          current_difficulty = 1;
+          // clear out any excess canvas bg
+          ctx.clearRect(0,0,canvas_width, rows * tile_width);
         }
       }
 
       // if we're on a start menu screen allow exiting
       if (on_start_screen) {
         // fade out the canvas
-        fade_out();
+        fade_out_rebuild_fade_in();
       }
 
     }
@@ -1750,13 +1822,16 @@ document.addEventListener('keyup', function(e) {
        !player.moving &&
        !paused &&
        !selector_is_moving) {
+
       // set key_pressed to inputted keycode's corresponding human readable value
       key_pressed = allowedKeys[e.keyCode];
 
       // handle difficulty selector movement on start screen
       if (on_start_screen) {
+        // toggle selector moving flag to true so we dont get midmove changes
         selector_is_moving = true;
-        animate_selector_move();
+        // animate the movement of the selector sprite
+        requestAnimationFrame(animate_selector_move);
       } else {
         // call the player movement animation which handles player movement
         // checks key_pressed value from this outer scope for movement direction
@@ -1766,7 +1841,6 @@ document.addEventListener('keyup', function(e) {
           player.animate_player_move();
         });
       }
-
     }
 
 });

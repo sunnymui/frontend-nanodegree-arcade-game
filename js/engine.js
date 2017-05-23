@@ -250,6 +250,7 @@ var Engine = (function(global) {
         renderEntities(lives);
         renderEntity(game_ui_score);
         renderEntity(game_ui_level);
+        renderEntity(instructions);
 
     }
 
@@ -526,6 +527,7 @@ var Engine = (function(global) {
         'images/char-pink-girl.png',
         'images/char-princess-girl.png',
         // start screen
+        'images/brotips.png',
         'images/Selector.png',
         'images/title.png'
     ]);
