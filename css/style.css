@@ -120,11 +120,15 @@ canvas {
 
 #preloader h4 {
     position: relative;
+    display: inline-block;
     top: 50vh;
-    height: 0;
+    vertical-align: middle;
     margin: auto;
-    color: #f3f3f3;
+    /* so it doesn't push everything down more */
+    height: 0;
+    color: #363333;
     font-weight: 100;
+    animation: fading 1s infinite alternate;
 }
 
 #preloader .animation {
@@ -132,25 +136,26 @@ canvas {
     /* quick v center in window */
     top: 50vh;
     margin: auto;
-    margin-top: -3.25em;
+    /* adjust the vertical centering */
+    margin-top: -3.1em;
     /* define circular colors and widths */
-    border: 0.5em solid #f3f3f3;
+    border: 0.1em solid #f3f3f3;
     border-radius: 99%;
-    border-top: 0.5em solid #df4a4a;
+    border-top: 0.1em solid #df4a4a;
     width: 6em;
     height: 6em;
-    -webkit-animation: spin 2s linear infinite;
     animation: spin 2s linear infinite;
-}
-
-@-webkit-keyframes spin {
-  0% { -webkit-transform: rotate(0deg); }
-  100% { -webkit-transform: rotate(360deg); }
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes fading {
+  from {
+    opacity: 0;
+  }
 }
 
 /* Popup message styling */

@@ -78,18 +78,6 @@ var Engine = (function(global) {
           /* Call our update/render functions, pass along the time delta to
           * our update function since it may be used for smooth animation.*/
 
-          // show the level indicator at start of first level
-          if (first_level){
-            // toggle message on
-            toggle_message(popup_level_class, game_ui_level.text, true);
-            // toggle first level flag so this doesn't show again
-            first_level = false;
-            setTimeout(function() {
-              // wait before toggling message off
-              toggle_message(popup_level_class, game_ui_level.text, true);
-            }, level_popup_delay);
-          }
-
           update(dt);
           render();
         }
@@ -108,10 +96,8 @@ var Engine = (function(global) {
     function start_screen() {
       // render the background using the saved, prerendered background image data
       ctx.putImageData(start_background, 0, 0);
-
-      renderEntity(demo);
+      // render start screen elements
       renderEntities(start_screen_elements);
-
     }
 
     function rebuild_world() {
@@ -136,6 +122,7 @@ var Engine = (function(global) {
       };
       // regenerate the level
       level_reset();
+
     }
 
     function init() {
@@ -143,7 +130,6 @@ var Engine = (function(global) {
      * particularly setting the lastTime variable that is required for the
      * game loop.
      */
-        reset();
         lastTime = Date.now();
         // render background once to cache in the background var since it stays the same
         renderBackground();
@@ -153,28 +139,24 @@ var Engine = (function(global) {
 
     }
 
-    /* This function is called by main (our game loop) and itself calls all
-     * of the functions which may need to update entity's data. Based on how
-     * you implement your collision detection (when two entities occupy the
-     * same space, for instance when your character should die), you may find
-     * the need to add an additional function call here. For now, we've left
-     * it commented out - you may or may not want to implement this
-     * functionality this way (you could just implement collision detection
-     * on the entities themselves within your app.js file).
-     */
     function update(dt) {
+      /* This function is called by main (our game loop) and itself calls all
+       * of the functions which may need to update entity's data.
+       Args: delta time (number) - change in time from last frame
+       Return: na
+       */
         updateEntities(dt);
         checkCollisions();
     }
 
-    /* This is called by the update function and loops through all of the
-     * objects within your allEnemies array as defined in app.js and calls
-     * their update() methods. It will then call the update function for your
-     * player object. These update methods should focus purely on updating
-     * the data/properties related to the object. Do your drawing in your
-     * render methods.
-     */
     function updateEntities(dt) {
+      /* This is called by the update function and loops through all of the
+       * objects within your allEnemies array as defined in app.js and calls
+       * their update() methods. It will then call the update function for your
+       * player object. These update methods should focus purely on updating
+       * the data/properties related to the object. Do your drawing in your
+       * render methods.
+       */
         allEnemies.forEach(function(enemy) {
             enemy.update(dt);
         });
@@ -281,16 +263,6 @@ var Engine = (function(global) {
         }
         // restore the context back to the regular positioning coordinates
         ctx.restore();
-    }
-
-    /* This function does nothing but it could have been a good place to
-     * handle game reset states - maybe a new game menu or a game over screen
-     * those sorts of things. It's only called once by the init() method.
-     */
-    function reset() {
-        // show the game options menu
-        console.log('resetting game character and difficulty happens here');
-
     }
 
     function canCollide(entity_array) {
@@ -539,9 +511,8 @@ var Engine = (function(global) {
      */
     global.ctx = ctx;
     global.canvas = canvas;
+    // allows reset of game world globally
     global.rebuild_world = rebuild_world;
-    // make reset global to let the game be resettable
-    global.game_reset = reset;
 
 })(this);
 

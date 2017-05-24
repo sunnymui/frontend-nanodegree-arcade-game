@@ -14,11 +14,7 @@ var current_difficulty = 1;
 // playing field and tile sizes
 var rows = 7;
 var cols = 7;
-// goal row player must reach to score
-var goal_row = 1;
-// figure out number of rows that will hold enemies
-// subtract 3 for the goal water row and the 2 grass rows
-var enemy_rows = rows - 3;
+
 // width of sprite tiles
 var tile_width = 101;
 // note: not actual height of the img, just the square 'above ground' part
@@ -35,6 +31,13 @@ var bottom_underground = 31;
 var dt;
 // initialize a var to store the allowed key that was pressed by user
 var key_pressed;
+// goal row player must reach to score
+var goal_row = 1;
+// y coordinate for the goal row position
+var goal_row_y_pos = tile_height - (full_img_tile_height * 2/3);
+// figure out number of rows that will hold enemies
+// subtract 3 for the goal water row and the 2 grass rows
+var enemy_rows = rows - 3;
 
 // playing field boundaries keep the player from leaving the canvas
 
@@ -96,6 +99,7 @@ var popup_overlay_class = 'popup_overlay';
 var popup_win_class = 'win';
 var popup_game_over_class = 'game_over';
 var popup_level_class = 'level';
+var popup_level_class_on = popup_level_class +' on';
 var secondary_popup_class = 'secondary';
 // text to put in the win message displayed when the goal row is reached
 var win_text_content = "You win, let's swim!";
@@ -345,6 +349,59 @@ function generate_pickups() {
   return pickups;
 }
 
+function generate_ui() {
+  /*
+  Generates the game chrome/ui like score tracker, level counter, etc.
+  Args: na
+  Return: na
+  */
+  var ui_elements = [];
+
+  // create game score tracker
+
+  var game_ui_score = new Entity({
+      position: {
+        // position them spaced apart in a row
+        x: canvas_width,
+        // top of the canvas
+        y: 33
+      },
+      text: score_label + score_text,
+      font: 'bold 27px Arial',
+      stroke_text: true,
+      text_align: 'right'
+  });
+
+  // create the level tracker
+
+  var game_ui_level = new Entity({
+    position: {
+      // position them spaced apart in a row
+      x: 110,
+      // top of the canvas
+      y: 33
+    },
+    text: level_label + level_text,
+    font: 'bold 27px Arial',
+    font_color: 'rgba(131, 131, 131, 0.54)'
+  });
+
+  // create controls text instructions
+
+  var instructions = new Entity({
+      position: {
+        // position them spaced apart in a row
+        x: canvas_width/2,
+        // top of the canvas
+        y: canvas_height - 5
+      },
+      text: 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  Continue: Enter',
+      font: '18px Arial',
+      font_color: '#444',
+      text_align: 'center'
+  });
+}
+
 // ============================
 // General Game Functions
 // ============================
@@ -450,7 +507,7 @@ function toggle_message(container_class, message_text, no_subtext, secondary) {
       sub_message.textContent = instruction_text_content;
     }
 
-    // set popup container class name to visible class if not set
+    // set current popup container class to passed in class if not set
     // and/or toggle popup visibility by adding on class
     if (box_container.className !== show_class) {
       // set container to the on class
@@ -497,6 +554,20 @@ function fade_out_rebuild_fade_in(from_in_game) {
     rebuild_world();
     // fade game canvas back in
     fade_in();
+    // show the level indicator at start of first level
+    if (player.current_level === 1 && !on_start_screen){
+      // toggle message on
+      toggle_message(popup_level_class, game_ui_level.text, true);
+      // toggle first level flag so this doesn't show again
+      first_level = false;
+      setTimeout(function() {
+        // only switch level popup if it still is the level popup
+        if (box_container.className === popup_level_class_on) {
+          // wait before toggling message off
+          toggle_message(popup_level_class, game_ui_level.text, true);
+        }
+      }, level_popup_delay);
+    }
   }, fade_back_in_wait_time);
 }
 
@@ -547,8 +618,11 @@ function crossfade_canvas_and_reset() {
       // show the current level message
       toggle_message(popup_level_class, game_ui_level.text, true);
       setTimeout(function() {
-        // make it go away after a bit
-        toggle_message(popup_level_class, game_ui_level.text, true);
+        // only hide the popup if it's still the level popup
+        if (box_container.className === popup_level_class + ' on') {
+          // make it go away after a bit
+          toggle_message(popup_level_class, game_ui_level.text, true);
+        }
       }, level_popup_delay);
     }
     animation_running = false;
@@ -1053,7 +1127,8 @@ Player.prototype.execute_win = function() {
   Args: na
   Return: na
   */
-
+  // make player invulnerable
+  this.invulnerable = true;
   // toggle goal reached flag
   this.goal_reached = true;
   // add points to the player's score
@@ -1112,6 +1187,8 @@ Player.prototype.reset = function(game_over) {
     this.streak = 0;
     // reset the score
     this.score = 0;
+    // no more first level
+
   }
 };
 
@@ -1180,13 +1257,19 @@ Player.prototype.collided = function(entity) {
           lives[this.lives-1].sprite.pos = [0, 0];
           break;
         case 'key':
-          // set distance moved to completion of player move so movement stops
-          this.distance_moved = full_img_tile_height;
-          // move to goal row coordinates
-          this.x = center_tile;
-          this.y = (tile_height) - (full_img_tile_height * 2/3);
-          // instant victory for player
-          this.execute_win();
+          // prevent edge case of enemy collision at 1 life when also getting key
+          if (!this.game_over){
+            // cache ref to this as self for use in requestAnimationFrame
+            var self = this;
+            // set distance moved to completion of player move so movement stops
+            this.distance_moved = full_img_tile_height;
+            // animate flying to goal row coordinates
+            requestAnimationFrame(function(){
+              self.fly_to_goal();
+            });
+            // instant victory for player
+            this.execute_win();
+          }
           break;
       }
       // update the game score tracker
@@ -1200,19 +1283,40 @@ Player.prototype.collided = function(entity) {
 };
 
 Player.prototype.fly_to_goal = function() {
+  /*
+  Make's player sprite fly on over to the center of the screen in the
+  goal row in an animated manner.
+  Args: na
+  Return: na
+  */
+  // how fast player sprite will fly to goal row
+  var speed = 20;
+  // store reference to this as this Player instance in the outer scope
+  // since request animation frame has window as the context
+  var self = this;
+
+  // exit animation when we've reached the goal row
+  if (this.x === center_tile && this.y === goal_row_y_pos) {
+    return;
+  }
+
+  // move player horizontally towards the center tile position
   if (this.x > center_tile) {
-
+    // move player to the left if they're too far right
+    this.x = clamp(this.x - speed, center_tile, canvas_width);
   } else {
-
+    // move player to the right if the're too far left
+    this.x = clamp(this.x + speed, player_boundary_left, center_tile);
   }
 
-  if (this.y > (tile_height) - (full_img_tile_height * 2/3)) {
+  // move player towards the goal row
+  this.y = clamp(this.y - speed, goal_row_y_pos, canvas_height);
 
-  } else {
+  // run animation recursively
+  requestAnimationFrame(function() {
+    self.fly_to_goal();
+  });
 
-  }
-
-  requestAnimationFrame();
 };
 
 Player.prototype.set_collision_sprite = function(type) {
@@ -1370,7 +1474,7 @@ Return: Constructed Pickup instance (object)
     // pickup drop rates, higher numbers are more common/likely to be picked
     // scale is from 1 - 100, 1 being rarer, 100 being considered every time
     var pickup_drop_rates = {
-      'blue gem': 100,
+      'blue gem': 50,
       'green gem': 60,
       'orange gem': 20,
       'heart': 40,
@@ -1593,6 +1697,9 @@ var difficulty_x_pos = 0;
 var difficulty_x_padding = 141;
 var difficulty_x_min_border = difficulty_x_padding-tile_width/2;
 var difficulty_x_max_border = (difficulty_x_padding*4)-tile_width/2;
+// height of the tips sprite image
+var demo_width = 500;
+var demo_height = 175;
 
 // instantiate the selector with a var for use in movement
 var selector =  new Entity({
@@ -1709,47 +1816,28 @@ start_screen_elements.push(
   })
 );
 
-var demo_width = 500;
-var demo_height = 175;
-// var demo_imgs = 6;
-//
-// var demo = [];
-//
-// for (i=1; i > demo_imgs; i+=1) {
-//   demo.push(new Entity({
-//     // create the sprite for the lives graphic
-//     sprite: new Sprite('images/brotip'+i+'.png',
-//                        // starting point in the sprite sheet
-//                        [0,0],
-//                        // size settings array
-//                        [demo_width,
-//                         demo_height]),
-//     position: {
-//       x: canvas_width/2-demo_width/2 + i*300,
-//       y: start_element_top_y_pos+280
-//     }
-//   }));
-// }
-
-var demo = new Entity({
-  // create the sprite for the lives graphic
-  sprite: new Sprite('images/brotips.png',
-                     // starting point in the sprite sheet
-                     [0,0],
-                     // size settings array
-                     [demo_width,
-                      demo_height],
-                      // speed
-                      20,
-                      // frames array
-                      range(0,81),
-                      // direction of frames
-                      'vertical'),
-  position: {
-    x: canvas_width/2-demo_width/2,
-    y: start_element_top_y_pos+280
-  }
-});
+// instantiate the demo brotips area
+start_screen_elements.push(
+  new Entity({
+    // create the sprite for the lives graphic
+    sprite: new Sprite('images/brotips.png',
+                       // starting point in the sprite sheet
+                       [0,0],
+                       // size settings array
+                       [demo_width,
+                        demo_height],
+                        // speed
+                        20,
+                        // frames array
+                        range(0,81),
+                        // direction of frames
+                        'vertical'),
+    position: {
+      x: canvas_width/2-demo_width/2,
+      y: start_element_top_y_pos+280
+    }
+  })
+);
 
 //////////////
 // CONTROLS //
@@ -1787,11 +1875,13 @@ document.addEventListener('keyup', function(e) {
         // initiate crossfade animation
         requestAnimationFrame(crossfade_canvas_and_reset);
 
+        // on a win
         if (player.goal_reached) {
           // hide the win message overlay popup
           toggle_message(popup_win_class, win_text_content);
         }
 
+        // on a game loss
         if (player.game_over) {
           // toggle the message popup off
           toggle_message(popup_game_over_class, game_over_text_content);
@@ -1846,7 +1936,7 @@ document.addEventListener('keyup', function(e) {
 });
 
 // check if user tabs away from the window
-document.addEventListener("visibilitychange", function() {
+document.addEventListener('visibilitychange', function() {
   // if tab is hidden and not already paused or the other endgame popups arent on
   if (document.hidden &&
       !paused &&
