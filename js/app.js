@@ -355,11 +355,37 @@ function generate_ui() {
   Args: na
   Return: na
   */
-  var ui_elements = [];
+  // obj literal to store all the ui things that will be manipulated
+  var ui_elements = {};
+
+  // init array for each life heart entity
+  ui_elements.lives = [];
+  // create the life counter
+  for (i = 0; i < player.lives; i += 1) {
+    ui_elements.lives.push(
+      new Entity({
+        // create the sprite for the lives graphic
+        sprite: new Sprite('images/Heart-map.png',
+                           [0,0],
+                           // size settings array
+                           [tile_width,
+                            full_img_tile_height,
+                            // scaled sprite size settings
+                            tile_width/4,
+                            full_img_tile_height/4]),
+        position: {
+          // position them spaced apart in a row
+          x: 10 + i*25,
+          // top of the canvas
+          y: 0
+        }
+      })
+    );
+  }
 
   // create game score tracker
 
-  var game_ui_score = new Entity({
+  ui_elements.game_ui_score = new Entity({
       position: {
         // position them spaced apart in a row
         x: canvas_width,
@@ -374,7 +400,7 @@ function generate_ui() {
 
   // create the level tracker
 
-  var game_ui_level = new Entity({
+  ui_elements.game_ui_level = new Entity({
     position: {
       // position them spaced apart in a row
       x: 110,
@@ -388,11 +414,11 @@ function generate_ui() {
 
   // create controls text instructions
 
-  var instructions = new Entity({
+  ui_elements.instructions = new Entity({
       position: {
         // position them spaced apart in a row
         x: canvas_width/2,
-        // top of the canvas
+        // bottom of the canvas
         y: canvas_height - 5
       },
       text: 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  Continue: Enter',
@@ -400,6 +426,8 @@ function generate_ui() {
       font_color: '#444',
       text_align: 'center'
   });
+
+return ui_elements;
 }
 
 // ============================
@@ -468,22 +496,22 @@ function level_reset() {
     // reset player position and stats, but also reset game over stats
     player.reset(true);
     // loop through the lives array to reset the sprites
-    for (i=0; i < lives.length; i+=1) {
+    for (i=0; i < ui.lives.length; i+=1) {
       // reset back to the full life sprite in the map
-      lives[i].sprite.pos = [0, 0];
+      ui.lives[i].sprite.pos = [0, 0];
     }
   } else {
     // move player back to start and reset condition
     player.reset();
   }
   // update the rendered level text displayed
-  game_ui_level.text = level_label + player.current_level;
+  ui.game_ui_level.text = level_label + player.current_level;
   // update the rendered score text displayed
-  game_ui_score.text = score_label + player.score;
+  ui.game_ui_score.text = score_label + player.score;
 
 }
 
-function toggle_message(container_class, message_text, no_subtext, secondary) {
+function toggle_message(settings) {
   /*
   Toggles the winner message overlay popup.
   Args: css class for the specific type of message (string)
@@ -492,15 +520,17 @@ function toggle_message(container_class, message_text, no_subtext, secondary) {
   whether this is a secondary level popup (boolean)
   Return: none;
   */
+  // on class to show popup
+  var on_class = ' on';
   // show class is the container class with the on class added
-  var show_class = container_class + ' on';
+  var show_class = settings.container_class + on_class;
 
   // check if this is the secondary popup
-  if (!secondary) {
+  if (!settings.secondary) {
     // set popup text to appropriate message content
-    box_message.textContent = message_text;
+    box_message.textContent = settings.message_text;
     // if no subtext parameter is true clear out the instruction text
-    if (no_subtext) {
+    if (settings.no_subtext) {
       sub_message.textContent = '';
     } else {
       // add the sub text in
@@ -515,7 +545,7 @@ function toggle_message(container_class, message_text, no_subtext, secondary) {
       // if its a different class or more than just the single class expected
     } else {
       // make popup invisible by removing the on class
-      box_container.className = container_class;
+      box_container.className = settings.container_class;
     }
   } else {
     // show the secondary box popup
@@ -526,19 +556,18 @@ function toggle_message(container_class, message_text, no_subtext, secondary) {
       // if its a different class or more than just the single class expected
     } else {
       // remove the on class
-      secondary_box_container.className = container_class;
+      secondary_box_container.className = settings.container_class;
     }
   }
 
 }
 
-function fade_out_rebuild_fade_in(from_in_game) {
+function fade_out_rebuild_fade_in(back_to_start) {
   /*
   Sets the canvas opacity to 0 to it becomes transparent. Depends on
   a CSS3 transition style to be defined for the animation heavy lifting.
   Also rebuilds the game world and fades back in after a set time.
-  Args: from_in_game (boolean) - whether we're coming from in game, which
-  means we have to kick the player back out to the start screen
+  Args: back_to_start (boolean) - whether we're going back to start screen
   Returns: na
   */
   // how long to wait until the fade in function is run
@@ -550,21 +579,30 @@ function fade_out_rebuild_fade_in(from_in_game) {
   setTimeout(function(){
     // toggle start screen flag, back to start from in game or off otherwise
     on_start_screen = !on_start_screen;
-    // build the game world with selected difficulty
-    rebuild_world();
+    if (back_to_start) {
+      // build start screen size world
+      rebuild_world(true);
+    } else {
+      // build the game world with selected difficulty
+      rebuild_world();
+    }
     // fade game canvas back in
     fade_in();
     // show the level indicator at start of first level
     if (player.current_level === 1 && !on_start_screen){
       // toggle message on
-      toggle_message(popup_level_class, game_ui_level.text, true);
+      toggle_message({container_class: popup_level_class,
+                      message_text: ui.game_ui_level.text,
+                      no_subtext: true});
       // toggle first level flag so this doesn't show again
       first_level = false;
       setTimeout(function() {
         // only switch level popup if it still is the level popup
         if (box_container.className === popup_level_class_on) {
           // wait before toggling message off
-          toggle_message(popup_level_class, game_ui_level.text, true);
+          toggle_message({container_class: popup_level_class,
+                          message_text: ui.game_ui_level.text,
+                          no_subtext: true});
         }
       }, level_popup_delay);
     }
@@ -616,12 +654,16 @@ function crossfade_canvas_and_reset() {
     // don't show level indicator after transitioning back to start screen
     if (!on_start_screen) {
       // show the current level message
-      toggle_message(popup_level_class, game_ui_level.text, true);
+      toggle_message({container_class: popup_level_class,
+                      message_text: ui.game_ui_level.text,
+                      no_subtext: true});
       setTimeout(function() {
         // only hide the popup if it's still the level popup
         if (box_container.className === popup_level_class + ' on') {
           // make it go away after a bit
-          toggle_message(popup_level_class, game_ui_level.text, true);
+          toggle_message({container_class: popup_level_class,
+                          message_text: ui.game_ui_level.text,
+                          no_subtext: true});
         }
       }, level_popup_delay);
     }
@@ -644,7 +686,9 @@ function pause_toggle() {
   // simple boolean toggler for paused flag
   paused = !paused;
   // show the secondary message popup for the pause message
-  toggle_message(secondary_popup_class, '', false, true);
+  toggle_message({container_class: secondary_popup_class,
+                  no_subtext: false,
+                  secondary: true});
 
 }
 
@@ -1134,7 +1178,7 @@ Player.prototype.execute_win = function() {
   // add points to the player's score
   this.score += 10;
   // update the game score tracker
-  game_ui_score.text = score_label + this.score;
+  ui.game_ui_score.text = score_label + this.score;
   // increment the current level
   this.current_level += 1;
   // immobilize the player
@@ -1144,7 +1188,8 @@ Player.prototype.execute_win = function() {
   // change the sprite to goal animation
   this.set_win_sprite();
   // show the winner message
-  toggle_message(popup_win_class, win_text_content);
+  toggle_message({container_class: popup_win_class,
+                  message_text: win_text_content});
 
   // if the player had a perfect game of not getting hit once
   if (this.collision_count === 0) {
@@ -1209,13 +1254,15 @@ Player.prototype.collided = function(entity) {
       // change the the lives sprite map to display a lost life
       // selects the last life sprite and changes the sprite map pos
       // to show the empty life sprite
-      lives[this.lives].sprite.pos = [tile_width, 0];
+      ui.lives[this.lives].sprite.pos = [tile_width, 0];
+      console.log('lives sprite changed should be');
       // trigger game over if player got hit with no lives left
       if(this.lives === this.min_lives) {
         // show the death animation
         this.set_game_over_sprite();
         // show the game over message
-        toggle_message(popup_game_over_class, game_over_text_content);
+        toggle_message({container_class: popup_game_over_class,
+                        message_text: game_over_text_content});
         // set player status to game over
         this.game_over = true;
         // freeze the player and prevent further collisions
@@ -1254,7 +1301,7 @@ Player.prototype.collided = function(entity) {
           // add a life to the player life bar
           this.lives = clamp(this.lives + 1, this.min_lives, this.max_lives);
           // make the corresponding heart sprite back to full
-          lives[this.lives-1].sprite.pos = [0, 0];
+          ui.lives[this.lives-1].sprite.pos = [0, 0];
           break;
         case 'key':
           // prevent edge case of enemy collision at 1 life when also getting key
@@ -1273,7 +1320,7 @@ Player.prototype.collided = function(entity) {
           break;
       }
       // update the game score tracker
-      game_ui_score.text = score_label + this.score;
+      ui.game_ui_score.text = score_label + this.score;
       // get the index of the current entity
       var pickup_index = pickups.indexOf(entity);
       // remove the pickup from the pickups array
@@ -1616,75 +1663,8 @@ var pickups = generate_pickups();
 //   UI INSTANTATION   //
 /////////////////////////
 
-// init array for each life heart entity
-var lives = [];
+var ui = generate_ui();
 
-// create the life counter
-for (i = 0; i < player.lives; i += 1) {
-  lives.push(
-    new Entity({
-      // create the sprite for the lives graphic
-      sprite: new Sprite('images/Heart-map.png',
-                         [0,0],
-                         // size settings array
-                         [tile_width,
-                          full_img_tile_height,
-                          // scaled sprite size settings
-                          tile_width/4,
-                          full_img_tile_height/4]),
-      position: {
-        // position them spaced apart in a row
-        x: 10 + i*25,
-        // top of the canvas
-        y: 0
-      }
-    })
-  );
-}
-
-// create game score tracker
-
-var game_ui_score = new Entity({
-    position: {
-      // position them spaced apart in a row
-      x: canvas_width,
-      // top of the canvas
-      y: 33
-    },
-    text: score_label + score_text,
-    font: 'bold 27px Arial',
-    stroke_text: true,
-    text_align: 'right'
-});
-
-// create the level tracker
-
-var game_ui_level = new Entity({
-  position: {
-    // position them spaced apart in a row
-    x: 110,
-    // top of the canvas
-    y: 33
-  },
-  text: level_label + level_text,
-  font: 'bold 27px Arial',
-  font_color: 'rgba(131, 131, 131, 0.54)'
-});
-
-// create controls text instructions
-
-var instructions = new Entity({
-    position: {
-      // position them spaced apart in a row
-      x: canvas_width/2,
-      // top of the canvas
-      y: canvas_height - 5
-    },
-    text: 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  Continue: Enter',
-    font: '18px Arial',
-    font_color: '#444',
-    text_align: 'center'
-});
 
 /////////////////////////
 // START INSTANTATION  //
@@ -1819,7 +1799,7 @@ start_screen_elements.push(
 // instantiate the demo brotips area
 start_screen_elements.push(
   new Entity({
-    // create the sprite for the lives graphic
+    // create the sprite for the brotips graphic
     sprite: new Sprite('images/brotips.png',
                        // starting point in the sprite sheet
                        [0,0],
@@ -1878,18 +1858,17 @@ document.addEventListener('keyup', function(e) {
         // on a win
         if (player.goal_reached) {
           // hide the win message overlay popup
-          toggle_message(popup_win_class, win_text_content);
+          toggle_message({container_class: popup_win_class,
+                          message_text: win_text_content});
         }
 
         // on a game loss
         if (player.game_over) {
           // toggle the message popup off
-          toggle_message(popup_game_over_class, game_over_text_content);
+          toggle_message({container_class: popup_game_over_class,
+                          message_text: game_over_text_content});
           // fade out canvas
           fade_out_rebuild_fade_in(true);
-          // set difficulty back to normal so canvas height will be normal
-          // when rebuild_world runs and excess canvas will be cut off
-          current_difficulty = 1;
           // clear out any excess canvas bg
           ctx.clearRect(0,0,canvas_width, rows * tile_width);
         }

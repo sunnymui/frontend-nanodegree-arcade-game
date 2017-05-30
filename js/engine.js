@@ -100,11 +100,25 @@ var Engine = (function(global) {
       renderEntities(start_screen_elements);
     }
 
-    function rebuild_world() {
-      // reset the # rows to the corresponding current difficulty
-      rows = difficulty[current_difficulty].rows;
+    function rebuild_world(back_to_start) {
+      /*
+      Rebuilds game world
+      Args: back_to_start (boolean) - if going back to start screen reset height
+      Return: na
+      */
+      if (back_to_start) {
+        // set to default height for start screen
+        rows = 7;
+      } else {
+        // reset the # rows to the corresponding current difficulty
+        rows = difficulty[current_difficulty].rows;
+      }
       // set the canvas height to accomodate the rows
       canvas.height = rows * tile_width;
+      // update the canvas_height var with new height
+      canvas_height = canvas.height;
+      // move instruction text to fit new canvas height
+      ui.instructions.y = canvas.height - 5;
       // rerender the background
       renderBackground();
       // reset the enemy rows
@@ -122,7 +136,6 @@ var Engine = (function(global) {
       };
       // regenerate the level
       level_reset();
-
     }
 
     function init() {
@@ -211,14 +224,13 @@ var Engine = (function(global) {
 
     }
 
-    /* This function initially draws the "game level", it will then call
-     * the renderEntities function. Remember, this function is called every
-     * game tick (or loop of the game engine) because that's how games work -
-     * they are flipbooks creating the illusion of animation but in reality
-     * they are just drawing the entire screen over and over.
-     */
-
     function render() {
+      /* This function initially draws the "game level", it will then call
+       * the renderEntities function. Remember, this function is called every
+       * game tick (or loop of the game engine) because that's how games work -
+       * they are flipbooks creating the illusion of animation but in reality
+       * they are just drawing the entire screen over and over.
+       */
 
         // render the background using the saved, prerendered background image data
         ctx.putImageData(background, 0, 0);
@@ -229,22 +241,38 @@ var Engine = (function(global) {
         renderEntity(player);
 
         // render the game ui
-        renderEntities(lives);
-        renderEntity(game_ui_score);
-        renderEntity(game_ui_level);
-        renderEntity(instructions);
-
+        renderEntities(ui);
     }
 
-    /* This function is called by the render function and is called on each game
-     * tick. Its purpose is to then call the render functions you have defined
-     * on your enemy and player entities within app.js
-     */
-
     function renderEntities(list) {
-        for(var i=0; i<list.length; i++) {
+      /* This function is called by the render function and is called on each game
+       * tick. Its purpose is to then call the render functions you have defined
+       * on your enemy and player entities within app.js
+       */
+
+      // render arrays of entities using a regular loop
+      if (Array.isArray(list)) {
+        for(i=0; i<list.length; i++) {
             renderEntity(list[i]);
         }
+      // render object associative arrays of entities using for/in loop
+      } else {
+        for (var item in list) {
+          // the current property in the object
+          var current_item = list[item];
+          // if property in object contains a sub-array
+          if (Array.isArray(current_item)) {
+            // loop through the subarray's entities to render each one
+            for (i=0; i < current_item.length; i+=1) {
+              // render current entity in the subarray
+              renderEntity(current_item[i]);
+            }
+          } else {
+            // otherwise render the current entity in the property
+            renderEntity(current_item);
+          }
+        }
+      }
     }
 
     function renderEntity(entity) {
