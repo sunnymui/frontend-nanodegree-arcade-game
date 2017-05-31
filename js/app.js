@@ -27,6 +27,8 @@ var canvas_width = cols * tile_width;
 var canvas_height = rows * tile_width;
 // pixel height for the bottom tile's little extra undeground part showing
 var bottom_underground = 31;
+// pixel height to accomodate ui elements like score, lives, etc
+var ui_height_spacer = 126;
 // init delta time to make timing equal across different performing browsers
 var dt;
 // initialize a var to store the allowed key that was pressed by user
@@ -61,24 +63,33 @@ var selector_is_moving = false;
 
 // object containing difficulty information
 var difficulty = [{
-    id: 1,
+    // id for this difficulty used in functions
+    id: 'easy',
+    // identifying text used in game
     label:'Easy',
+    // number of rows to make the game board
     rows: 6,
+    // number of lives to start with
+    lives: 3,
+    // sprite to use to represent on start screen
     sprite: 'images/char-pink-girl.png'
   },{
-    id: 2,
+    id: 'medium',
     label:'Normal',
     rows: 7,
+    lives: 3,
     sprite: 'images/char-cat-girl.png'
   },{
-    id: 3,
+    id: 'hard',
     label:'Hard',
     rows: 8,
+    lives: 2,
     sprite: 'images/char-horn-girl.png'
   },{
-    id: 4,
+    id: 'very_hard',
     label:'DIEHARD',
     rows: 12,
+    lives: 1,
     sprite: 'images/char-princess-girl.png'
 }];
 
@@ -529,12 +540,19 @@ function toggle_message(settings) {
   if (!settings.secondary) {
     // set popup text to appropriate message content
     box_message.textContent = settings.message_text;
+
     // if no subtext parameter is true clear out the instruction text
     if (settings.no_subtext) {
       sub_message.textContent = '';
     } else {
       // add the sub text in
       sub_message.textContent = instruction_text_content;
+    }
+    var streak_text = 'Flawless Victories: ' + player.streak;
+    var high_score_text = 'High Score on ' + difficulty[current_difficulty].label + ': ' + player.high_score;
+
+    if (settings.other_text) {
+      other_message.appendChild(doc.createTextNode());
     }
 
     // set current popup container class to passed in class if not set
@@ -960,6 +978,13 @@ var Player = function(start_position, type) {
 
   // player score tracker
   this.score = 0;
+  // player high score tracker
+  this.high_score = {
+    easy: 0,
+    medium: 0,
+    hard: 0,
+    very_hard: 0
+  };
   // player lives, player starts out with this
   this.lives = 3;
   // max amount of lives player can have
@@ -1232,8 +1257,6 @@ Player.prototype.reset = function(game_over) {
     this.streak = 0;
     // reset the score
     this.score = 0;
-    // no more first level
-
   }
 };
 
@@ -1255,7 +1278,6 @@ Player.prototype.collided = function(entity) {
       // selects the last life sprite and changes the sprite map pos
       // to show the empty life sprite
       ui.lives[this.lives].sprite.pos = [tile_width, 0];
-      console.log('lives sprite changed should be');
       // trigger game over if player got hit with no lives left
       if(this.lives === this.min_lives) {
         // show the death animation
@@ -1268,6 +1290,11 @@ Player.prototype.collided = function(entity) {
         // freeze the player and prevent further collisions
         this.invulnerable = true;
         this.immobile = true;
+        // set the high score to the current score if larger
+        if (this.high_score[difficulty[current_difficulty].id] < this.score) {
+          this.high_score[difficulty[current_difficulty].id] = this.score;
+          console.log('high score: ',this.high_score[difficulty[current_difficulty].id]);
+        }
         // prevent typical collision behavior by exiting function
         return;
       }

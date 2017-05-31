@@ -113,8 +113,18 @@ var Engine = (function(global) {
         // reset the # rows to the corresponding current difficulty
         rows = difficulty[current_difficulty].rows;
       }
-      // set the canvas height to accomodate the rows
-      canvas.height = rows * tile_width;
+      // set starting player lives according to current difficulty
+      player.lives = difficulty[current_difficulty].lives;
+      // loop through lives sprites to match player lives
+      for (i = 0; i < player.max_lives; i+=1) {
+        // only change sprites greater than the current player lives
+        if (i > player.lives - 1) {
+          // set to empty heart
+          ui.lives[i].sprite.pos = [tile_width, 0];
+        }
+      }
+      // set the canvas height to accomodate the new # of rows
+      canvas.height = rows * tile_height + ui_height_spacer;
       // update the canvas_height var with new height
       canvas_height = canvas.height;
       // move instruction text to fit new canvas height
@@ -444,6 +454,8 @@ var Engine = (function(global) {
       var box_message = doc.createElement('h1');
       // create an h3 for the subtitle message
       var sub_message = doc.createElement('h3');
+      // create h4 for the rest of the information
+      var other_message = doc.createElement('h4');
       // create the default text for the h1
       var box_text = doc.createTextNode(win_text_content);
       // create text content for the subttile message
@@ -457,6 +469,8 @@ var Engine = (function(global) {
       box_container.appendChild(box_message);
       // add the subheading to the popup container
       box_container.appendChild(sub_message);
+      // add the other info element h4 to the popup container
+      box_container.appendChild(other_message);
       // add the popup div to the larger overlay container
       box_overlay.appendChild(box_container);
       // append the win container div to the page
