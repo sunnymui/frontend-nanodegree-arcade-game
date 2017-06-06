@@ -112,6 +112,7 @@ var popup_game_over_class = 'game_over';
 var popup_level_class = 'level';
 var popup_level_class_on = popup_level_class +' on';
 var secondary_popup_class = 'secondary';
+var game_key_instructions = 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  Mute: M  -  Continue: Enter';
 
 // text to put in the win message displayed when the goal row is reached
 var win_text_content = "Winrar!";
@@ -148,7 +149,9 @@ var level_text = '1';
 // time in ms before the level popup is hidden
 var level_popup_delay = 1200;
 
-// some globalish vars for instantiation functions
+// audio vars for control purposes
+var game_music;
+var start_music;
 
 // counters for incrementing loops
 var i;
@@ -380,7 +383,6 @@ function generate_pickups() {
 
   // same for game total but add all generated pickups in
   player.pickups.game_total += pickups.length;
-  console.log(player.pickups.game_total);
 
   return pickups;
 }
@@ -457,7 +459,7 @@ function generate_ui() {
         // bottom of the canvas
         y: canvas_height - 5
       },
-      text: 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  Continue: Enter',
+      text: game_key_instructions,
       font: '18px Arial',
       font_color: '#444',
       text_align: 'center'
@@ -751,6 +753,21 @@ function fade_out_rebuild_fade_in(back_to_start) {
                           no_subtext: true});
         }
       }, level_popup_delay);
+    }
+    // play the appropriate audio
+    if (!back_to_start) {
+      // stop the intro screen music
+      start_music.stop();
+      // if game music instance has been created already
+      if (game_music) {
+        // play the game music
+        game_music.play();
+      } else {
+        // create game music instance and start playing the game music
+        game_music = createjs.Sound.play("game_music", repeat_music);
+      }
+    } else {
+      start_music.play();
     }
   }, fade_back_in_wait_time);
 }
@@ -2055,12 +2072,19 @@ document.addEventListener('keyup', function(e) {
     // keyboard event keycodes for various game CONTROLS
     var p_key = 80;
     var enter_key = 13;
+    var m_key = 77;
     var allowedKeys = {
         37: 'left',
         38: 'up',
         39: 'right',
         40: 'down'
     };
+
+    // m for mute audio
+    if (e.keyCode === m_key) {
+      // toggle the boolean
+      createjs.Sound.muted = !createjs.Sound.muted;
+    }
 
     // p for pause as long as not goal reached or game over
     if (e.keyCode === p_key &&

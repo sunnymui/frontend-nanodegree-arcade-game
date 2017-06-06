@@ -463,8 +463,6 @@ var Engine = (function(global) {
       var sub_message = doc.createElement('h3');
       // create h4 for the rest of the information
       var other_message = doc.createElement('h4');
-      // linebreak
-      var br = doc.createElement('br');
       // create the default text for the h1
       var box_text = doc.createTextNode(win_text_content);
       // create text content for the subttile message
@@ -544,7 +542,6 @@ var Engine = (function(global) {
       global.pickups_gem_text = pickups_gem_text;
       global.pickups_heart_text = pickups_heart_text;
       global.pickups_key_text = pickups_key_text;
-      global.br = br;
     }
 
     /* Go ahead and load all of the images we know we're going to need to
@@ -582,6 +579,7 @@ var Engine = (function(global) {
     ]);
     Resources.onReady(init);
 
+
     /* Assign the canvas' context object to the global variable (the window
      * object when run in a browser) so that developers can use it more easily
      * from within their app.js files.
@@ -592,6 +590,22 @@ var Engine = (function(global) {
     global.rebuild_world = rebuild_world;
 
 })(this);
+
+// sounds
+
+// playback settings
+var repeat_music = new createjs.PlayPropsConfig().set({
+  interrupt: createjs.Sound.INTERRUPT_ANY,
+  loop: -1
+});
+// load and register sounds we'll use
+var assetPath = 'audio/';
+var sounds = [
+  {src:"Intro Theme.mp3", id:"start_music"},
+  {src:"Grasslands Theme.mp3", id:"game_music"}
+];
+// createjs.Sound.on("fileload", handleLoad); // call handleLoad when each sound loads
+createjs.Sound.registerSounds(sounds, assetPath);
 
 ///////////////
 // PRELOADER //
@@ -617,4 +631,6 @@ window.onload = function() {
   main_div[0].removeAttribute('style');
   // make the canvas visible
   canvas.style.opacity = 1;
+  // start playing start screen music
+  start_music = createjs.Sound.play("start_music", repeat_music);
 };
