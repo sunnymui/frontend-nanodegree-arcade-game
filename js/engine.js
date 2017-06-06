@@ -144,6 +144,8 @@ var Engine = (function(global) {
         // adding 1 to make the row grid starting at 1
         row: rows
       };
+      // set pickups game counter to 0
+      player.pickups.game_total = 0;
       // regenerate the level
       level_reset();
     }
@@ -303,6 +305,54 @@ var Engine = (function(global) {
         ctx.restore();
     }
 
+    function checkCollisions() {
+      /*
+      High level manager of collision checking between player / collidable entities.
+      Gets entities to check for collisions, filters close ones using canCollide,
+      run the calc_hitbox_collision function on the player object and compares
+      with every other entity we've selected. no projectiles or enemy on enemy
+      collisions to deal with so we can just do player to entity comparisons
+      Args: na
+      Return: na
+      */
+
+      // var for the different arrays of entities to be checked by as collidable
+      var entity_types = [];
+      // check if player is invulnerable to cancel check for enemies
+      if (player.invulnerable) {
+        // make sure player is collidable
+        if (player.collidable) {
+          // only check pickup collisions
+          entity_types = pickups;
+        }
+      } else {
+        // create a new array by concatenating enemies and pickups
+        entity_types = allEnemies.concat(pickups);
+      }
+      // array to hold all the entities to check for collisions
+      var entities_to_check = canCollide(entity_types);
+
+      // init vars for the current entity to check and collision happened check
+      var current_entity;
+      var collision_happened;
+
+      // loop through the entities to check array
+      for (i = 0; i < entities_to_check.length; i+=1) {
+        // assign current entity to current array index element
+        current_entity = entities_to_check[i];
+        // compare player and entity hitbox locations to determine collision
+        collision_happened = calc_hitbox_collision(player, current_entity);
+        // if collision happened aka calc_hitbox_collision function returns true
+        if (collision_happened) {
+          // player collided function does all the animating and temp invulnerability
+          player.collided(current_entity);
+          // only one collision w/ something at a time for now so skip the rest
+          break;
+        }
+      }
+
+    }
+
     function canCollide(entity_array) {
       /*
       Checks if entities are close enough to the player for possible collision.
@@ -341,27 +391,6 @@ var Engine = (function(global) {
       return collidable_objects;
     }
 
-    function collides(entity_1, entity_2) {
-      /*
-      Checks if any of the bounds of the first object are within the bounds of the
-      second object by using their respective positions and the position of their
-      top right and bottom left corners.
-      Args: expects first object and second object to compare (obj, obj).
-            each object requires this data -
-            {
-              x: x position on the left edge (integer),
-              y: y position on top edge (integer),
-              r: x position on the right edge (integer),
-              b: y position on the bottom edge (integer),
-            }
-      Return: boolean,
-              true if any of the bounds are within each other aka collision,
-              false if not, aka no collision
-      */
-      return !(entity_1.r <= entity_2.x || entity_1.x > entity_2.r ||
-             entity_1.b <= entity_2.y || entity_1.y > entity_2.b);
-    }
-
     function calc_hitbox_collision(player, entity) {
     /*
     Calculate the hitbox corners of the player and the entity, then use those
@@ -391,47 +420,25 @@ var Engine = (function(global) {
         );
     }
 
-    function checkCollisions() {
+    function collides(entity_1, entity_2) {
       /*
-      High level manager of collision checking between player / collidable objects
-      run the boxcollides function on the player object and compares
-      with every other entity. no projectiles or enemy on enemy
-      collisions to deal with so we can just do player to entity comparisons
-      Args: na
-      Return: na
+      Checks if any of the bounds of the first object are within the bounds of the
+      second object by using their respective positions and the position of their
+      top right and bottom left corners.
+      Args: expects first object and second object to compare (obj, obj).
+            each object requires this data -
+            {
+              x: x position on the left edge (integer),
+              y: y position on top edge (integer),
+              r: x position on the right edge (integer),
+              b: y position on the bottom edge (integer),
+            }
+      Return: boolean,
+              true if any of the bounds are within each other aka collision,
+              false if not, aka no collision
       */
-
-      // var for the different arrays of entities to be checked by as collidable
-      var entity_types;
-      // check if player is invulnerable to cancel check for enemies
-      if (player.invulnerable) {
-        entity_types = pickups;
-      } else {
-        // create a new array by concatenating enemies and pickups
-        entity_types = allEnemies.concat(pickups);
-      }
-      // array to hold all the entities to check for collisions
-      var entities_to_check = canCollide(entity_types);
-
-      // init vars for the current entity to check and collision happened check
-      var current_entity;
-      var collision_happened;
-
-      // loop through the entities to check array
-      for (i = 0; i < entities_to_check.length; i+=1) {
-        // assign current entity to current array index element
-        current_entity = entities_to_check[i];
-        // compare player and entity hitbox locations to determine collision
-        collision_happened = calc_hitbox_collision(player, current_entity);
-        // if collision happened aka calc_hitbox_collision function returns true
-        if (collision_happened) {
-          // player collided function does all the animating and temp invulnerability
-          player.collided(current_entity);
-          // only one collision w/ something at a time for now so skip the rest
-          break;
-        }
-      }
-
+      return !(entity_1.r <= entity_2.x || entity_1.x > entity_2.r ||
+             entity_1.b <= entity_2.y || entity_1.y > entity_2.b);
     }
 
     function create_message_popup_overlay() {
@@ -456,10 +463,28 @@ var Engine = (function(global) {
       var sub_message = doc.createElement('h3');
       // create h4 for the rest of the information
       var other_message = doc.createElement('h4');
+      // linebreak
+      var br = doc.createElement('br');
       // create the default text for the h1
       var box_text = doc.createTextNode(win_text_content);
       // create text content for the subttile message
       var sub_text = doc.createTextNode(instruction_text_content);
+      // create high score text
+      var high_score_text = doc.createTextNode(high_score_text_content);
+      // create longest streak wins text
+      var high_streak_text = doc.createTextNode(high_streak_text_content);
+      // create current streak wins text
+      var current_streak_text = doc.createTextNode(current_streak_text_content);
+      // create current streak wins text
+      var current_collision_text = doc.createTextNode(collision_text_content);
+      // create pickups for collected/total text
+      var pickups_total_text = doc.createTextNode(current_pickups_text_content);
+      // create key pickup text
+      var pickups_key_text = doc.createTextNode(pickups_key_text_content);
+      // create heart pickups text
+      var pickups_heart_text = doc.createTextNode(pickups_heart_text_content);
+      // create gem pickups text
+      var pickups_gem_text = doc.createTextNode(pickups_gem_text_content);
 
       // add the text to the h1 element
       box_message.appendChild(box_text);
@@ -510,6 +535,16 @@ var Engine = (function(global) {
       global.secondary_box_message = secondary_box_message;
       global.secondary_sub_message = secondary_sub_message;
       global.secondary_box_container = secondary_box_container;
+      global.other_message = other_message;
+      global.high_streak_text = high_streak_text;
+      global.current_streak_text = current_streak_text;
+      global.high_score_text = high_score_text;
+      global.current_collision_text = current_collision_text;
+      global.pickups_total_text = pickups_total_text;
+      global.pickups_gem_text = pickups_gem_text;
+      global.pickups_heart_text = pickups_heart_text;
+      global.pickups_key_text = pickups_key_text;
+      global.br = br;
     }
 
     /* Go ahead and load all of the images we know we're going to need to

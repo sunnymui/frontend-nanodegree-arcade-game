@@ -183,7 +183,13 @@ canvas {
     /* for the transition animation */
     -webkit-transform: translate3d(0, -30%, 0);
     transform: translate3d(0, -30%, 0);
-    transition: 1s all;
+    transition: 0.7s all;
+}
+
+.popup_overlay h4 {
+  text-transform: capitalize;
+  font-weight: 100;
+  color: #fff;
 }
 
 .win {

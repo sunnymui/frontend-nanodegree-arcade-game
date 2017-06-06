@@ -112,11 +112,27 @@ var popup_game_over_class = 'game_over';
 var popup_level_class = 'level';
 var popup_level_class_on = popup_level_class +' on';
 var secondary_popup_class = 'secondary';
+
 // text to put in the win message displayed when the goal row is reached
-var win_text_content = "You win, let's swim!";
+var win_text_content = "Winrar!";
 // text to put in the game over message box
-var game_over_text_content = 'Wipeout! Game Over Dude!';
+var game_over_text_content = 'Game Over Man!';
 var instruction_text_content = 'Press ENTER to Continue >';
+// other text for stats and extra info
+var current_streak_text_content = "Haters (Enemies) Can't Touch This ";
+var current_streak_text_content_2 = "x";
+var high_streak_text_content = 'Longest Untouchable Streak: ';
+var high_score_text_content = 'High Score (';
+var collision_text_content = 'The Bad Touch - 1 Hit';
+var collision_2_text_content = 'Ya Dun Goofed - 2 Hits';
+var collision_3_text_content = 'He Ded - 3 Hits';
+var collision_4_text_content = 'Abusive Relationship - Hits Galore';
+var current_pickups_text_content = 'Junk Collected: ';
+var game_pickups_text_content = 'Total Junk Collected: ';
+var pickups_gem_text_content = 'Gems Hoarded: ';
+var pickups_heart_text_content = 'Hearts Broken: ';
+var pickups_key_text_content = 'Cheap Wins: ';
+
 // text for pause message
 var pause_text_content = 'Paused';
 var pause_sub_text_content = 'Press P to Unpause';
@@ -148,6 +164,8 @@ var animation_fade_counter = 0;
 var animation_fade_increase = Math.PI / 100;
 // flag to track if transition animation is running
 var animation_running = false;
+// flag to only run a function once
+var ran_once = false;
 
 // ================
 // Utility functions
@@ -357,6 +375,13 @@ function generate_pickups() {
     }
   }
 
+  // set number of pickups for current level tracker to pickups in the array
+  player.pickups.current_total = pickups.length;
+
+  // same for game total but add all generated pickups in
+  player.pickups.game_total += pickups.length;
+  console.log(player.pickups.game_total);
+
   return pickups;
 }
 
@@ -548,11 +573,112 @@ function toggle_message(settings) {
       // add the sub text in
       sub_message.textContent = instruction_text_content;
     }
-    var streak_text = 'Flawless Victories: ' + player.streak;
-    var high_score_text = 'High Score on ' + difficulty[current_difficulty].label + ': ' + player.high_score;
 
-    if (settings.other_text) {
-      other_message.appendChild(doc.createTextNode());
+    if (settings.other_text || settings.no_subtext) {
+      // clear out the other messages nodes so we start with clean slate
+      while (other_message.firstChild) {
+        // remove the child node from other message
+        other_message.removeChild(other_message.firstChild);
+      }
+    }
+
+    // is this a game over popup?
+    if (settings.other_text === 'game over') {
+
+      // add the current high score and streak to the corresponding text
+      high_streak_text.nodeValue = high_streak_text_content + player.high_streak;
+      high_score_text.nodeValue = high_score_text_content + difficulty[current_difficulty].label + '): ' + player.high_score[difficulty[current_difficulty].id];
+
+      // append text to the h4 element in the popup
+      other_message.appendChild(high_score_text);
+      other_message.appendChild(document.createElement('br'));
+      other_message.appendChild(high_streak_text);
+      other_message.appendChild(document.createElement('br'));
+
+      // check that this game had pickups
+      if(player.pickups.game_total > 0) {
+        // change text to show current collected out of current total items
+        pickups_total_text.nodeValue = game_pickups_text_content + player.pickups.game_collected + ' / ' + player.pickups.game_total;
+
+        // append text to the other message h4 element
+        other_message.appendChild(pickups_total_text);
+        other_message.appendChild(document.createElement('br'));
+
+        // add all gem pickups to get total gems collected
+        var total_gems = player.pickups.blue_gem + player.pickups.green_gem + player.pickups.orange_gem;
+        // if player collected any gems
+        if (total_gems > 0) {
+          // write number of gems collected total into gem text
+          pickups_gem_text.nodeValue = pickups_gem_text_content + total_gems;
+
+          // append text to the other message h4 element
+          other_message.appendChild(pickups_gem_text);
+          other_message.appendChild(document.createElement('br'));
+        }
+
+        if (player.pickups.heart > 0) {
+          // write number of hearts collected total into heart text
+          pickups_heart_text.nodeValue = pickups_heart_text_content + player.pickups.heart;
+
+          // append text to the other message h4 element
+          other_message.appendChild(pickups_heart_text);
+          other_message.appendChild(document.createElement('br'));
+        }
+
+        if (player.pickups.key > 0) {
+          // write number of keys collected total into key text
+          pickups_key_text.nodeValue = pickups_key_text_content + player.pickups.key;
+
+          // append text to the other message h4 element
+          other_message.appendChild(pickups_key_text);
+          other_message.appendChild(document.createElement('br'));
+        }
+      }
+
+    // is this a win popup?
+    } else if (settings.other_text === 'win') {
+
+      // if player has a streak going
+      if (player.streak > 0) {
+        // add current streak to text node
+        current_streak_text.nodeValue = current_streak_text_content + player.streak + current_streak_text_content_2;
+        // append current streak to other messages h4
+        other_message.appendChild(current_streak_text);
+        other_message.appendChild(document.createElement('br'));
+      }
+
+      // if player was hit during this level
+      if (player.collision_count > 0) {
+        // set collision text to text for corresponding # of collisions
+        switch (player.collision_count) {
+          case 1:
+            current_collision_text.nodeValue = collision_text_content;
+            break;
+          case 2:
+            current_collision_text.nodeValue = collision_2_text_content;
+            break;
+          case 3:
+            current_collision_text.nodeValue = collision_3_text_content;
+            break;
+        }
+        if (player.collision_count > 3) {
+          current_collision_text.nodeValue = collision_4_text_content;
+        }
+        // append appropriate collision statement to h4
+        other_message.appendChild(current_collision_text);
+        other_message.appendChild(document.createElement('br'));
+      }
+
+      // pickups collected
+      // add current total counter
+      if (player.pickups.current_total > 0) {
+        // change text to show current collected out of current total items
+        pickups_total_text.nodeValue = current_pickups_text_content + player.pickups.current_collected + ' / ' + player.pickups.current_total;
+        // append text to the other message h4 element
+        other_message.appendChild(pickups_total_text);
+        other_message.appendChild(document.createElement('br'));
+      }
+
     }
 
     // set current popup container class to passed in class if not set
@@ -579,6 +705,8 @@ function toggle_message(settings) {
   }
 
 }
+
+// TRANSITIONS
 
 function fade_out_rebuild_fade_in(back_to_start) {
   /*
@@ -657,14 +785,24 @@ function crossfade_canvas_and_reset() {
 
   // do the resets when stuff is invisible
   if (ctx.globalAlpha < 0.01) {
-    // reset the level
-    level_reset();
+    // only run once
+    if (!ran_once){
+      // reset the level
+      level_reset();
+      // trip run once flag so level doesnt get reset again
+      ran_once = true;
+    }
+
+    // set global alpha back up so level reset only runs once
+    ctx.globalAlpha = 0.01;
   }
 
   // if the global transparency is almost back to full opacity
   if (ctx.globalAlpha > 0.99) {
     // reset the counter
     animation_fade_counter = 0;
+    // reset ran once flag
+    ran_once = false;
     // set transparency back to full opacity
     ctx.globalAlpha = 1;
     // restore player mobility
@@ -978,12 +1116,28 @@ var Player = function(start_position, type) {
 
   // player score tracker
   this.score = 0;
-  // player high score tracker
+  // player game high score tracker for various difficulties
   this.high_score = {
     easy: 0,
     medium: 0,
     hard: 0,
     very_hard: 0
+  };
+  // tracker for how many pickups of each type player has collected
+  this.pickups = {
+    // current amt in the level collected by player
+    current_collected: 0,
+    // total pickups generated for the current level
+    current_total: 0,
+    // collected for the whole game
+    game_collected: 0,
+    // total pickups generated for the whole game
+    game_total: 0,
+    blue_gem: 0,
+    green_gem: 0,
+    orange_gem: 0,
+    heart: 0,
+    key:0
   };
   // player lives, player starts out with this
   this.lives = 3;
@@ -993,12 +1147,16 @@ var Player = function(start_position, type) {
   this.min_lives = 0;
   // number of games finished without getting hit once
   this.streak = 0;
+  // longest streak of wins
+  this.high_streak = 0;
   // current level player is on
   this.current_level = 1;
   // initialize a move distance tracker for animating player movement
   this.distance_moved = 0;
   // track if player is moving rows
   this.moving = false;
+  // track if player is collidable to ANY entity--pickups, enemies, etc
+  this.collidable = true;
   // track the row player is in
   this.row = start_position.row;
   // tracks the row player is moving to when moving
@@ -1007,7 +1165,7 @@ var Player = function(start_position, type) {
   this.hitbox_bottom_edge = 114;
   // set hitbox top y position upwards from the bottom of the art to the height
   this.hitbox_y = this.hitbox_bottom_edge - this.height;
-  // track if player has been hit during this games
+  // track if player has been hit during this game level
   this.collision_count = 0;
   // enemy-player collision flag if player hit an enemy
   this.enemy_collided = false;
@@ -1214,15 +1372,18 @@ Player.prototype.execute_win = function() {
   this.set_win_sprite();
   // show the winner message
   toggle_message({container_class: popup_win_class,
-                  message_text: win_text_content});
+                  message_text: win_text_content,
+                  other_text: 'win'});
 
   // if the player had a perfect game of not getting hit once
   if (this.collision_count === 0) {
     // add to the streak counter
     this.streak += 1;
-  } else {
-    // reset the collision counter for the next game if they got hit this round
-    this.collision_count = 0;
+    // if current streak is higher than all time longest streak
+    if (this.streak > this.high_streak) {
+      // set high streak to current streak
+      this.high_streak = this.streak;
+    }
   }
 
 };
@@ -1241,8 +1402,14 @@ Player.prototype.reset = function(game_over) {
   this.row = player_start_position.row;
   // reset player invulnerability
   this.invulnerable = false;
+  // reset player collidability
+  this.collidable = true;
   // reset goal reached flag
-  player.goal_reached = false;
+  this.goal_reached = false;
+  // reset the collision count
+  this.collision_count = 0;
+  // reset current collected pickups
+  this.pickups.current_collected = 0;
   // reset player sprite
   this.reset_sprite();
   // resets additional stuff if it's a game over player reset
@@ -1251,12 +1418,17 @@ Player.prototype.reset = function(game_over) {
     this.lives = this.max_lives;
     // reset the current level
     this.current_level = 1;
-    // reset game over flag
-    this.game_over = false;
-    // reset streak counter
-    this.streak = 0;
+    // reset streak counters
+    this.streak = this.high_streak = 0;
     // reset the score
     this.score = 0;
+    // set all props in pickups stats tracker back to 0
+    for (var item in this.pickups) {
+      // set current item to 0
+      this.pickups[item] = 0;
+    }
+    // reset game over flag
+    this.game_over = false;
   }
 };
 
@@ -1270,8 +1442,14 @@ Player.prototype.collided = function(entity) {
 
     // if player collided with an enemy
     if (entity instanceof Enemy) {
+      // make player invulnerable temporarily to stop 60 collisions/sec from happening
+      this.invulnerable = true;
+      // stop player from being able to move
+      this.immobile = true;
       // increment the current game collision count
       this.collision_count += 1;
+      // reset the streak counter
+      this.streak = 0;
       // decrement the player's health/life counter
       this.lives = clamp(this.lives - 1, this.min_lives, this.max_lives);
       // change the the lives sprite map to display a lost life
@@ -1282,19 +1460,17 @@ Player.prototype.collided = function(entity) {
       if(this.lives === this.min_lives) {
         // show the death animation
         this.set_game_over_sprite();
+        // if the high score for curent difficulty is less than current score
+        if (this.high_score[difficulty[current_difficulty].id] < this.score) {
+          // set the high score to the current score for current difficulty
+          this.high_score[difficulty[current_difficulty].id] = this.score;
+        }
         // show the game over message
         toggle_message({container_class: popup_game_over_class,
-                        message_text: game_over_text_content});
+                        message_text: game_over_text_content,
+                        other_text: 'game over'});
         // set player status to game over
         this.game_over = true;
-        // freeze the player and prevent further collisions
-        this.invulnerable = true;
-        this.immobile = true;
-        // set the high score to the current score if larger
-        if (this.high_score[difficulty[current_difficulty].id] < this.score) {
-          this.high_score[difficulty[current_difficulty].id] = this.score;
-          console.log('high score: ',this.high_score[difficulty[current_difficulty].id]);
-        }
         // prevent typical collision behavior by exiting function
         return;
       }
@@ -1304,39 +1480,56 @@ Player.prototype.collided = function(entity) {
       }
       // set enemy-player collision flag to true since we player got hit
       this.enemy_collided = true;
-      // make player invulnerable temporarily to stop 60 collisions/sec from happening
-      this.invulnerable = true;
-      // stop player from being able to move
-      this.immobile = true;
       // change sprite to collision sprite image animation for corresponding thing
       this.set_collision_sprite(entity.type);
     }
 
     if (entity instanceof Pickup) {
+      // increment level pickups counter
+      this.pickups.current_collected += 1;
+      // increment the total game pickups counter
+      this.pickups.game_collected += 1;
+
       switch (entity.type) {
         case 'blue gem':
           // add points to player score
           this.score += 2;
+          // increment blue gem counter
+          this.pickups.blue_gem += 1;
           break;
         case 'green gem':
           this.score += 5;
+          this.pickups.green_gem += 1;
           break;
         case 'orange gem':
           this.score += 10;
+          this.pickups.orange_gem += 1;
           break;
         case 'heart':
+          // give em a point
+          this.score += 1;
           // add a life to the player life bar
           this.lives = clamp(this.lives + 1, this.min_lives, this.max_lives);
           // make the corresponding heart sprite back to full
           ui.lives[this.lives-1].sprite.pos = [0, 0];
+          // increment heart pickup counter
+          this.pickups.heart += 1;
           break;
         case 'key':
           // prevent edge case of enemy collision at 1 life when also getting key
-          if (!this.game_over){
+          if (!this.game_over) {
+            // give em a point
+            this.score += 1;
+            // make player uncollidable to any entity, won't pickup in flight
+            this.collidable = false;
+            // make player invulnerable
+            this.invulnerable = true;
             // cache ref to this as self for use in requestAnimationFrame
             var self = this;
             // set distance moved to completion of player move so movement stops
             this.distance_moved = full_img_tile_height;
+            // increment key pickup counter
+            this.pickups.key += 1;
             // animate flying to goal row coordinates
             requestAnimationFrame(function(){
               self.fly_to_goal();
@@ -1371,6 +1564,12 @@ Player.prototype.fly_to_goal = function() {
 
   // exit animation when we've reached the goal row
   if (this.x === center_tile && this.y === goal_row_y_pos) {
+    // reset the distance moved since player was likely mid move
+    this.distance_moved = 0;
+    // movement complete so moving status should be back to false
+    this.moving = false;
+    // set row to goal row
+    this.row = this.destination_row;
     return;
   }
 
@@ -1684,7 +1883,7 @@ var allEnemies = generate_enemies();
 //////////////////////////
 
 // array to store all the pickup instances
-var pickups = generate_pickups();
+var pickups;
 
 /////////////////////////
 //   UI INSTANTATION   //
