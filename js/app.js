@@ -1,6 +1,6 @@
 // general game state setting data, sizes in pixels
 
-// game state
+// GAME STATE
 
 // is game paused?
 var paused = false;
@@ -10,6 +10,40 @@ var on_start_screen = true;
 var first_level = true;
 // current difficulty, ranges from 0 to 3 for easy to very hard
 var current_difficulty = 1;
+
+// object containing difficulty information
+var difficulty = [{
+    // id for this difficulty used in functions
+    id: 'easy',
+    // identifying text used in game
+    label:'Easy',
+    // number of rows to make the game board
+    rows: 6,
+    // number of lives to start with
+    lives: 3,
+    // sprite to use to represent on start screen
+    sprite: 'images/char-pink-girl.png'
+  },{
+    id: 'medium',
+    label:'Normal',
+    rows: 7,
+    lives: 3,
+    sprite: 'images/char-cat-girl.png'
+  },{
+    id: 'hard',
+    label:'Hard',
+    rows: 8,
+    lives: 2,
+    sprite: 'images/char-horn-girl.png'
+  },{
+    id: 'very_hard',
+    label:'DIEHARD',
+    rows: 12,
+    lives: 1,
+    sprite: 'images/char-princess-girl.png'
+}];
+
+// GAME DIMENSIONS
 
 // playing field and tile sizes
 var rows = 7;
@@ -54,44 +88,13 @@ var player_boundary_top = -31;
 // the little undeground part on the bottom row
 var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
 
-// start screen ui and text
+// GAME UI AND MESSAGES
 
+// start screen ui and text
 // tracker for selector animation and moved distance so far
 var selector_moved_distance = 0;
 // flag for if the selector is currently in motion
 var selector_is_moving = false;
-
-// object containing difficulty information
-var difficulty = [{
-    // id for this difficulty used in functions
-    id: 'easy',
-    // identifying text used in game
-    label:'Easy',
-    // number of rows to make the game board
-    rows: 6,
-    // number of lives to start with
-    lives: 3,
-    // sprite to use to represent on start screen
-    sprite: 'images/char-pink-girl.png'
-  },{
-    id: 'medium',
-    label:'Normal',
-    rows: 7,
-    lives: 3,
-    sprite: 'images/char-cat-girl.png'
-  },{
-    id: 'hard',
-    label:'Hard',
-    rows: 8,
-    lives: 2,
-    sprite: 'images/char-horn-girl.png'
-  },{
-    id: 'very_hard',
-    label:'DIEHARD',
-    rows: 12,
-    lives: 1,
-    sprite: 'images/char-princess-girl.png'
-}];
 
 // where to start placing start screen elements
 var start_element_top_y_pos = 200;
@@ -104,8 +107,7 @@ var title_height = 250;
 var start_game_text = 'Press ENTER to Start Game';
 var select_difficulty_text = 'Select Difficulty with ARROW Keys';
 
-// game ui and messages
-
+// game ui
 var popup_overlay_class = 'popup_overlay';
 var popup_win_class = 'win';
 var popup_game_over_class = 'game_over';
@@ -114,13 +116,27 @@ var popup_level_class_on = popup_level_class +' on';
 var secondary_popup_class = 'secondary';
 var game_key_instructions = 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  Mute: M  -  Continue: Enter';
 
+// on screen keyboard
+var keyboard_class = 'keyboard';
+var arrows_class = 'arrows';
+var inputs_class = 'inputs';
+var flex_wrap_class = 'flex-wrap';
+var flex_center_class = 'flex-center';
+var up_key_class = 'up';
+var left_key_class = 'left';
+var right_key_class = 'right';
+var down_key_class = 'down';
+var m_key_class = 'm';
+var p_key_class = 'p';
+var enter_key_class = 'enter';
+
 // text to put in the win message displayed when the goal row is reached
 var win_text_content = "Winrar!";
 // text to put in the game over message box
 var game_over_text_content = 'Game Over Man!';
 var instruction_text_content = 'Press ENTER to Continue >';
 // other text for stats and extra info
-var current_streak_text_content = "Haters (Enemies) Can't Touch This ";
+var current_streak_text_content = "Haterz Can't Touch This ";
 var current_streak_text_content_2 = "x";
 var high_streak_text_content = 'Longest Untouchable Streak: ';
 var high_score_text_content = 'High Score (';
@@ -149,15 +165,58 @@ var level_text = '1';
 // time in ms before the level popup is hidden
 var level_popup_delay = 1200;
 
+// AUDIO
 // audio vars for control purposes
+
 var game_music;
 var start_music;
+var win_music;
+var lose_music;
+var preloaded_sounds;
 
-// counters for incrementing loops
+// playback settings for bg music
+var repeat_music = new createjs.PlayPropsConfig().set({
+  interrupt: createjs.Sound.INTERRUPT_ANY,
+  loop: -1,
+  volume: 0.2
+});
+// load and register sounds we'll use
+var assetPath = 'audio/';
+// array of sounds and sources
+var sounds = [
+  {src:"Intro Theme.mp3", id:"start_music"},
+  {src:"Grasslands Theme.mp3", id:"grass_music"},
+  {src:"Guile Theme Short.mp3", id:"guile_music"},
+  {src:"Mushroom Theme.mp3", id:"mushroom_music"},
+  {src:"Boss Theme.mp3", id:"boss_music"},
+  {src:"Desert Theme.mp3", id:"desert_music"},
+  {src:"Iceland Theme.mp3", id:"iceland_music"},
+  {src:"Worldmap Theme.mp3", id:"worldmap_music"},
+  {src:"win music 3.mp3", id:"win_music"},
+  {src:"Icy Game Over.mp3", id:"lose_music"},
+  {src:"Fly 3.mp3", id:"fly_effect"},
+  {src:"Coin 3.mp3", id:"gem_effect"},
+  {src:"hit1.mp3", id:"hit_effect"},
+  {src:"Powerup 3.mp3", id:"powerup_effect"},
+  {src:"Select 1.mp3", id:"select_effect"},
+  {src:"splash.mp3", id:"splash_effect"},
+  {src:"Walk.ogg", id:"walk_effect"},
+  {src:"Shoot 1.mp3", id:"confirm_effect"}
+];
+// randomly select song to play from the preloaded sounds array
+var song_id = random_song_id();
+
+// get length of sounds for checking if loaded
+var sounds_length = sounds.length;
+var preloaded_sounds_length;
+
+// COUNTERS
+// for incrementing loops
+
 var i;
 var j;
 
-// animation vars
+// ANIMATION
 
 // counter for the crossfade animation to work in incrementing 0 to 1 to 0
 var animation_fade_counter = 0;
@@ -211,6 +270,23 @@ Return: array of length n containing values of each integer from start to end
         number_array.push(i);
     }
     return number_array;
+}
+
+function is_empty(obj) {
+  /*
+  Check if an object is empty or not.
+  Args: obj (object) - object to Check
+  Return: boolean - if object is empty (true) or not empty (false)
+  */
+    // loop through the object's properties
+    for(var prop in obj) {
+        // if the object has a property
+        if(obj.hasOwnProperty(prop))
+          // return false
+          return false;
+    }
+    // otherwise return true if no properties
+    return true;
 }
 
 // ============================
@@ -345,7 +421,7 @@ function generate_pickups() {
   var pickup_x_pos;
   var pickup_y_pos;
 
-  // generate specified number of special enemies
+  // generate specified number of pickups
   for (i=0; i < number_of_pickups; i+=1) {
     // randomly select a row place the pickup in the enemy rows
     pickup_row = Math.floor(random_num_in_range(1, enemy_rows));
@@ -363,6 +439,15 @@ function generate_pickups() {
         row: pickup_row+1,
         col: pickup_col+1})
       );
+  }
+
+  // remove any empty pickup instances by looping through the array
+  for (i=0; i < pickups.length; i+=1) {
+    // if the instance is empty obj
+    if (is_empty(pickups[i])) {
+      // splice it out of the array
+      pickups.splice(i,1);
+    }
   }
 
   // remove pickups that are in the same space as other pickups
@@ -523,12 +608,12 @@ function level_reset() {
   Args: na
   return: na
   */
-  // clear the previous enemies array
-  allEnemies.length = 0;
   // regenerate enemies so that they change from previous level
   allEnemies = generate_enemies();
   // regenerate pickups
   pickups = generate_pickups();
+  // stop the currently playing music
+  createjs.Sound.stop();
   // if game over reset the lives sprites too
   if(player.game_over) {
     // reset player position and stats, but also reset game over stats
@@ -539,6 +624,11 @@ function level_reset() {
       ui.lives[i].sprite.pos = [0, 0];
     }
   } else {
+    // audio changes only if not game over
+    // change and restart game music
+    song_id = random_song_id();
+    // set new game music and play the selected song
+    game_music = createjs.Sound.play(song_id, repeat_music);
     // move player back to start and reset condition
     player.reset();
   }
@@ -754,19 +844,18 @@ function fade_out_rebuild_fade_in(back_to_start) {
         }
       }, level_popup_delay);
     }
-    // play the appropriate audio
+
+    // play the appropriate audio depending on where we are
     if (!back_to_start) {
       // stop the intro screen music
-      start_music.stop();
-      // if game music instance has been created already
-      if (game_music) {
-        // play the game music
-        game_music.play();
-      } else {
-        // create game music instance and start playing the game music
-        game_music = createjs.Sound.play("game_music", repeat_music);
-      }
+      createjs.Sound.stop();
+      // set game music and play the selected song
+      game_music = createjs.Sound.play(song_id, repeat_music);
+    // if we're heading back to the start screen
     } else {
+      // stop the in game music
+      createjs.Sound.stop();
+      // start playing the start screen music
       start_music.play();
     }
   }, fade_back_in_wait_time);
@@ -849,6 +938,37 @@ function crossfade_canvas_and_reset() {
   requestAnimationFrame(crossfade_canvas_and_reset);
 }
 
+// OTHER GAME FUNCTIONS
+
+function random_song_id() {
+  /*
+  Returns a song id to a random song in the sounds array for use as the
+  game music.
+  Args: none
+  Return: a random id from the sounds array (string)
+  */
+  // return a random song id from the sounds array
+  return sounds[Math.floor(random_num_in_range(1, 8))].id;
+}
+
+function check_if_all_audio_loaded() {
+/*
+Checks if preloaded sounds array is same as our sounds array, if so
+then all sounds have been preloaded and we're ready to start the music.
+Args: na
+Return: na
+*/
+  // get the registered sounds length
+  preloaded_sounds_length = preloaded_sounds.length;
+  // check if preloaded sounds is equal to sounds we expect
+  if (preloaded_sounds_length === sounds.length) {
+    // start the intro menu music
+    start_music = createjs.Sound.play("start_music", repeat_music);
+    return;
+  }
+  requestAnimationFrame(check_if_all_audio_loaded);
+}
+
 function pause_toggle() {
   /*
   Toggles the pause flag off and on. If it's false it switches to true, if true
@@ -862,9 +982,7 @@ function pause_toggle() {
   toggle_message({container_class: secondary_popup_class,
                   no_subtext: false,
                   secondary: true});
-
 }
-
 
 /////////////////////////
 //     ENTITY CLASS    //
@@ -1244,6 +1362,9 @@ Return: none
   var horizontal_move = key_pressed == 'left' || key_pressed == 'right';
   var vertical_move = key_pressed == 'up' || key_pressed == 'down';
 
+  // play walk sounds
+  createjs.Sound.play('walk_effect');
+
   // set moving status of player to true since we're on the move
   this.moving = true;
 
@@ -1383,10 +1504,14 @@ Player.prototype.execute_win = function() {
   this.current_level += 1;
   // immobilize the player
   this.immobile = true;
-  // reset sprite in it's in the collision animation
+  // reset sprite if it's in the collision animation
   this.reset_sprite();
   // change the sprite to goal animation
   this.set_win_sprite();
+  // play splash sound effect
+  createjs.Sound.play('splash_effect');
+  // play win music
+  win_music = createjs.Sound.play('win_music');
   // show the winner message
   toggle_message({container_class: popup_win_class,
                   message_text: win_text_content,
@@ -1473,6 +1598,8 @@ Player.prototype.collided = function(entity) {
       // selects the last life sprite and changes the sprite map pos
       // to show the empty life sprite
       ui.lives[this.lives].sprite.pos = [tile_width, 0];
+      // play hit sound effect
+      createjs.Sound.play('hit_effect');
       // trigger game over if player got hit with no lives left
       if(this.lives === this.min_lives) {
         // show the death animation
@@ -1482,6 +1609,8 @@ Player.prototype.collided = function(entity) {
           // set the high score to the current score for current difficulty
           this.high_score[difficulty[current_difficulty].id] = this.score;
         }
+        // play game over music
+        createjs.Sound.play('lose_music');
         // show the game over message
         toggle_message({container_class: popup_game_over_class,
                         message_text: game_over_text_content,
@@ -1513,14 +1642,20 @@ Player.prototype.collided = function(entity) {
           this.score += 2;
           // increment blue gem counter
           this.pickups.blue_gem += 1;
+          // play gem pickup sound effect
+          createjs.Sound.play('gem_effect');
           break;
         case 'green gem':
           this.score += 5;
           this.pickups.green_gem += 1;
+          // play gem pickup sound effect
+          createjs.Sound.play('gem_effect');
           break;
         case 'orange gem':
           this.score += 10;
           this.pickups.orange_gem += 1;
+          // play gem pickup sound effect
+          createjs.Sound.play('gem_effect');
           break;
         case 'heart':
           // give em a point
@@ -1531,6 +1666,8 @@ Player.prototype.collided = function(entity) {
           ui.lives[this.lives-1].sprite.pos = [0, 0];
           // increment heart pickup counter
           this.pickups.heart += 1;
+          // play powerup sound effect
+          createjs.Sound.play('powerup_effect');
           break;
         case 'key':
           // prevent edge case of enemy collision at 1 life when also getting key
@@ -1551,6 +1688,8 @@ Player.prototype.collided = function(entity) {
             requestAnimationFrame(function(){
               self.fly_to_goal();
             });
+            // play flying sound effect
+            createjs.Sound.play('fly_effect');
             // instant victory for player
             this.execute_win();
           }
@@ -1768,7 +1907,7 @@ Return: Constructed Pickup instance (object)
       'green gem': 60,
       'orange gem': 20,
       'heart': 40,
-      'key': 100,
+      'key': 20
     };
 
     // generate random number for the drop chance to compare with the drop rate
@@ -1783,6 +1922,11 @@ Return: Constructed Pickup instance (object)
         // push item to possible pickups array for final selection of item
         possible_pickups.push(item);
       }
+    }
+
+    // if no possible pickups exit constructor, nothing will be generated
+    if (!possible_pickups.length) {
+      return;
     }
 
     // select a single item at random from our possible pickups array
@@ -1807,7 +1951,7 @@ Return: Constructed Pickup instance (object)
         // scale it down a little bit
         scaled_img_width *= 0.8;
         scaled_img_height *= 0.8;
-        // move bottom edge of hitbox to account for smaller size
+        // move bottom edge of hitbox to ac`count for smaller size
         default_hitbox_bottom_edge = 140;
         break;
       case 'key':
@@ -1892,14 +2036,16 @@ var player = new Player(player_start_position, 'boy');
 // ENEMY INSTANTIATION //
 /////////////////////////
 
-// array to store all enemy instances
-var allEnemies = generate_enemies();
+// array to store all enemy instances, actual INSTANTIATION is on demand
+// via rebuild world when moving froms start screen
+var allEnemies;
 
 //////////////////////////
 // PICKUP INSTANTIATION //
 //////////////////////////
 
-// array to store all the pickup instances
+// array to store all the pickup instances actual INSTANTIATION is on demand
+// via rebuild world when moving froms start screen
 var pickups;
 
 /////////////////////////
@@ -1907,7 +2053,6 @@ var pickups;
 /////////////////////////
 
 var ui = generate_ui();
-
 
 /////////////////////////
 // START INSTANTATION  //
@@ -2063,6 +2208,15 @@ start_screen_elements.push(
 );
 
 //////////////
+//  SOUNDS  //
+//////////////
+
+// preload the audio
+preloaded_sounds = createjs.Sound.registerSounds(sounds, assetPath);
+// get the length of registered sounds to
+preloaded_sounds_length = preloaded_sounds.length;
+
+//////////////
 // CONTROLS //
 //////////////
 
@@ -2130,6 +2284,9 @@ document.addEventListener('keyup', function(e) {
         fade_out_rebuild_fade_in();
       }
 
+      // play selection confirmation sound effect
+      createjs.Sound.play('confirm_effect');
+
     }
 
     // only run the animation if an allowed key was pressed
@@ -2147,6 +2304,8 @@ document.addEventListener('keyup', function(e) {
 
       // handle difficulty selector movement on start screen
       if (on_start_screen) {
+        // play select sound effect
+        createjs.Sound.play('select_effect');
         // toggle selector moving flag to true so we dont get midmove changes
         selector_is_moving = true;
         // animate the movement of the selector sprite

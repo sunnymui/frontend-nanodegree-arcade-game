@@ -189,7 +189,7 @@
           else {
               x += frame * this.size[0];
           }
-
+          
           ctx.drawImage(Resources.get(this.url),
                         x, y, // where in the map to draw from
                         this.size[0], this.size[1], // size of the sprite within the sprite map

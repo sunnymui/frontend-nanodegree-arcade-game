@@ -67,6 +67,10 @@ table{
     MAIN
 \*------------------------------------*/
 
+* {
+  box-sizing: border-box;
+}
+
 h1, h2, h3, h4, h5, h6 {
   display: block;
   font-weight: bold;
@@ -94,19 +98,28 @@ body {
     background: linear-gradient(to right, #F8FFAE, #43C6AC); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
 }
 
-/* main content container for layout and centering */
+/* layout and centering */
 
-.main {
+.flex-fill-center {
     /* take the full size of the window so things get centered in window */
     display: flex;
     width: 100%;
     height: 100vh;
+    /* Center children vertically and horizontally*/
+    align-items: center;
+    justify-content: center;
 }
 
-canvas {
-    margin: auto;
-    transition: 1s all;
-    opacity: 0;
+.flex-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Preloader Styling */
@@ -158,6 +171,15 @@ canvas {
   }
 }
 
+/* Canvas styling */
+
+canvas {
+    margin: auto;
+    /* Allows fade in and out effects */
+    transition: 1s all;
+    opacity: 0;
+}
+
 /* Popup message styling */
 
 .popup_overlay {
@@ -167,10 +189,11 @@ canvas {
     justify-content: center;
     /* overlay the win message on top of the game */
     position: absolute;
-    top: 0;
     /* fill the screen */
-    width: 100%;
-    min-height: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
 .popup_overlay div {
@@ -219,8 +242,62 @@ canvas {
 }
 
 .popup_overlay .on {
-    /*margin-top: 0%;*/
     opacity: 1;
     -webkit-transform: none;
     transform: none;
+}
+
+/* Onscreen Keyboard for Mobile */
+
+.keyboard {
+  display: none;
+  width: 100%;
+  min-height: 250px;
+  font-family: sans-serif;
+  color: #fff;
+}
+
+.arrows,
+.inputs {
+  width: 100%;
+}
+
+.arrows li {
+  font-size: 48px;
+  font-weight: bold;
+  width: 29%;
+  margin: 1% auto;
+  padding: 0.5em;
+}
+.arrows .up,
+.arrows .left,
+.arrows .right,
+.arrows .down {
+  background: #00A388;
+}
+
+.inputs li {
+  font-size: 22px;
+  width: 30%;
+  margin: 5% auto;
+  padding: 1em;
+  text-transform: uppercase;
+}
+
+.inputs .m,
+.inputs .p,
+.inputs .enter {
+  background: #79BD8F;
+}
+
+/* Media Queries */
+
+@media only screen
+  and (min-device-width: 320px)
+  and (max-device-width: 1024px)
+  and (orientation: portrait)
+  and (-webkit-min-device-pixel-ratio: 1) {
+  .keyboard {
+    display: block;
+  }
 }

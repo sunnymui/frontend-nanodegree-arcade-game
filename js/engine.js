@@ -36,12 +36,23 @@ var Engine = (function(global) {
 
     // main content container creation
 
+    // create a wrapper element for main
+    var main_wrapper = doc.createElement('div');
+    // assign class to wrapper
+    main_wrapper.className = 'flex-fill-center';
     // create the main container element
-    var main_container = doc.createElement('div');
-    // add class of main
-    main_container.className = 'main';
-    // append to the body in the dom
-    doc.body.appendChild(main_container);
+    var main_container = doc.createElement('main');
+
+    // create onscreen mobile keyboard control container
+    var onscreen_controls = create_on_screen_controls();
+    console.log(onscreen_controls);
+
+    // append main container to main wrapper
+    main_wrapper.appendChild(main_container);
+    // get the footer element
+    var main_footer = doc.getElementsByTagName('footer')[0];
+    // append to the body in the dom before the footer
+    doc.body.insertBefore(main_wrapper, main_footer);
 
     // canvas element creation
 
@@ -146,8 +157,11 @@ var Engine = (function(global) {
       };
       // set pickups game counter to 0
       player.pickups.game_total = 0;
-      // regenerate the level
-      level_reset();
+      // avoid unnecesary level reset on start screen
+      if (!back_to_start) {
+        // regenerate the level
+        level_reset();
+      }
     }
 
     function init() {
@@ -544,6 +558,42 @@ var Engine = (function(global) {
       global.pickups_key_text = pickups_key_text;
     }
 
+    function create_on_screen_controls() {
+      /*
+      Creates the dom elements for the on screen keyboard controls.
+      */
+      var keyboard = doc.createElement('div');
+      var arrows;
+      var inputs;
+
+      // append 2 ul's to the keyboard container div
+      for (i=0; i < 2; i+=1) {
+        keyboard.appendChild(doc.createElement('ul'));
+      }
+
+      // set references to each ul element for the arrows and input keys
+      arrows = keyboard.childNodes[0];
+      inputs = keyboard.childNodes[1];
+
+      // assign respective classes to container and ul's
+      keyboard.className = keyboard_class;
+      arrows.className = arrows_class + ' ' + flex_wrap_class;
+      inputs.className = inputs_class + ' ' + flex_wrap_class;
+
+      // append list item elements to the arrow keys ul
+      for (i=0; i < 9; i+=1) {
+        arrows.appendChild(doc.createElement('li'));
+      }
+
+      // append list items to the input keys ul
+      for (i=0; i<3; i+=1) {
+        inputs.appendChild(doc.createElement('li'));
+      }
+
+      return keyboard;
+
+    }
+
     /* Go ahead and load all of the images we know we're going to need to
      * draw our game level. Then set init as the callback method, so that when
      * all of these images are properly loaded our game will start.
@@ -591,22 +641,6 @@ var Engine = (function(global) {
 
 })(this);
 
-// sounds
-
-// playback settings
-var repeat_music = new createjs.PlayPropsConfig().set({
-  interrupt: createjs.Sound.INTERRUPT_ANY,
-  loop: -1
-});
-// load and register sounds we'll use
-var assetPath = 'audio/';
-var sounds = [
-  {src:"Intro Theme.mp3", id:"start_music"},
-  {src:"Grasslands Theme.mp3", id:"game_music"}
-];
-// createjs.Sound.on("fileload", handleLoad); // call handleLoad when each sound loads
-createjs.Sound.registerSounds(sounds, assetPath);
-
 ///////////////
 // PRELOADER //
 ///////////////
@@ -614,7 +648,7 @@ createjs.Sound.registerSounds(sounds, assetPath);
 // get the #preloader dom element
 var preloader = document.getElementById('preloader');
 // get the .main dom element
-var main_div = document.getElementsByClassName('main');
+var main_div = document.getElementsByTagName('main');
 // set the main div to display none so there's no vertical scrollbar
 main_div[0].style.display = 'none';
 
@@ -627,10 +661,11 @@ window.onload = function() {
   // delay taking it out of the document flow to allow transition to play
   window.setTimeout(function(){
     preloader.style.display = 'none';
+    // start playing preloaded start screen music
+    check_if_all_audio_loaded();
   }, 1100);
   main_div[0].removeAttribute('style');
   // make the canvas visible
   canvas.style.opacity = 1;
-  // start playing start screen music
-  start_music = createjs.Sound.play("start_music", repeat_music);
+
 };
