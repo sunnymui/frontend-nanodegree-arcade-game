@@ -43,10 +43,6 @@ var Engine = (function(global) {
     // create the main container element
     var main_container = doc.createElement('main');
 
-    // create onscreen mobile keyboard control container
-    var onscreen_controls = create_on_screen_controls();
-    console.log(onscreen_controls);
-
     // append main container to main wrapper
     main_wrapper.appendChild(main_container);
     // get the footer element
@@ -67,6 +63,11 @@ var Engine = (function(global) {
 
     // message popup overlay box creation
     create_message_popup_overlay();
+
+    // create onscreen mobile keyboard control container
+    var onscreen_controls = create_on_screen_controls();
+    // append onscreen controls to the main container
+    main_container.appendChild(onscreen_controls);
 
     /* This function serves as the kickoff point for the game loop itself
      * and handles properly calling the update and render methods.
@@ -541,6 +542,7 @@ var Engine = (function(global) {
 
       // make the message overlay globally accessible
       // need ability to change classes, content
+      global.box_overlay = box_overlay;
       global.box_message = box_message;
       global.sub_message = sub_message;
       global.box_container = box_container;
@@ -566,32 +568,64 @@ var Engine = (function(global) {
       var arrows;
       var inputs;
 
+      // create a keyboard show/hide toggle button
+      var toggle_button = doc.createElement('a');
+      // set href
+      toggle_button.href = "#";
+      // add toggle keyboard class
+      toggle_button.className = toggle_key_class;
+      // add toggle button text
+      toggle_button.textContent = toggle_key_text_content;
+      // append the toggle button to the keyboard container div
+      keyboard.appendChild(toggle_button);
+
       // append 2 ul's to the keyboard container div
       for (i=0; i < 2; i+=1) {
         keyboard.appendChild(doc.createElement('ul'));
       }
 
       // set references to each ul element for the arrows and input keys
-      arrows = keyboard.childNodes[0];
-      inputs = keyboard.childNodes[1];
+      arrows = keyboard.childNodes[1];
+      inputs = keyboard.childNodes[2];
 
       // assign respective classes to container and ul's
       keyboard.className = keyboard_class;
       arrows.className = arrows_class + ' ' + flex_wrap_class;
       inputs.className = inputs_class + ' ' + flex_wrap_class;
 
-      // append list item elements to the arrow keys ul
+      // append 9 list item elements to the arrow keys ul
       for (i=0; i < 9; i+=1) {
         arrows.appendChild(doc.createElement('li'));
       }
 
-      // append list items to the input keys ul
+      // set classes of the arrow keys
+      arrows.childNodes[1].className = up_key_class+' '+flex_center_class;
+      arrows.childNodes[3].className = left_key_class+' '+flex_center_class;
+      arrows.childNodes[5].className = right_key_class+' '+flex_center_class;
+      arrows.childNodes[7].className = down_key_class+' '+flex_center_class;
+
+      // set text conetnt of arrow key li's
+      arrows.childNodes[1].textContent = up_key_text_content;
+      arrows.childNodes[3].textContent = left_key_text_content;
+      arrows.childNodes[5].textContent = right_key_text_content;
+      arrows.childNodes[7].textContent = down_key_text_content;
+
+      // append 3 list items to the input keys ul
       for (i=0; i<3; i+=1) {
         inputs.appendChild(doc.createElement('li'));
       }
 
-      return keyboard;
+      // set classes of input keys
+      inputs.childNodes[0].className = m_key_class+' '+flex_center_class;
+      inputs.childNodes[1].className = p_key_class+' '+flex_center_class;
+      inputs.childNodes[2].className = enter_key_class+' '+flex_center_class;
 
+      // set text content of the input key li's
+      inputs.childNodes[0].textContent = m_key_text_content;
+      inputs.childNodes[1].textContent = p_key_text_content;
+      inputs.childNodes[2].textContent = enter_key_text_content;
+
+      return keyboard;
     }
 
     /* Go ahead and load all of the images we know we're going to need to

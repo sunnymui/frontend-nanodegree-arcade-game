@@ -250,24 +250,35 @@ canvas {
 /* Onscreen Keyboard for Mobile */
 
 .keyboard {
-  display: none;
   width: 100%;
-  min-height: 250px;
   font-family: sans-serif;
   color: #fff;
+}
+
+.toggle_keyboard {
+  display: block;
+  margin: 0 auto 1em auto;
 }
 
 .arrows,
 .inputs {
   width: 100%;
+  display: none;
+  transition: 0.8s all;
 }
+
+.arrows .on,
+.inputs .on {
+  display: flex;
+} 
 
 .arrows li {
   font-size: 48px;
   font-weight: bold;
   width: 29%;
   margin: 1% auto;
-  padding: 0.5em;
+  border-radius: 999px;
+  padding: 0.8em 0.5em;
 }
 .arrows .up,
 .arrows .left,
@@ -277,17 +288,20 @@ canvas {
 }
 
 .inputs li {
-  font-size: 22px;
-  width: 30%;
+  font-size: 2em;
+  font-weight: 800;
+  color: #213349;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
+  width: 27%;
   margin: 5% auto;
-  padding: 1em;
+  padding: 0.7em 0;
   text-transform: uppercase;
 }
 
 .inputs .m,
 .inputs .p,
 .inputs .enter {
-  background: #79BD8F;
+  background: #6998a7;
 }
 
 /* Media Queries */
@@ -297,7 +311,11 @@ canvas {
   and (max-device-width: 1024px)
   and (orientation: portrait)
   and (-webkit-min-device-pixel-ratio: 1) {
-  .keyboard {
-    display: block;
-  }
+    .arrows,
+    .inputs {
+      display: flex;
+    }
+    .popup_overlay {
+      bottom: 33%;
+    }
 }

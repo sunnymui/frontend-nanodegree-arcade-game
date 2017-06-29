@@ -129,6 +129,16 @@ var down_key_class = 'down';
 var m_key_class = 'm';
 var p_key_class = 'p';
 var enter_key_class = 'enter';
+var toggle_key_class = 'toggle_keyboard';
+// keyboard text content
+var toggle_key_text_content = 'Toggle Onscreen Control';
+var up_key_text_content = '↑';
+var left_key_text_content = '←';
+var right_key_text_content = '→';
+var down_key_text_content = '↓';
+var m_key_text_content = 'm';
+var p_key_text_content = 'p';
+var enter_key_text_content = 'Enter';
 
 // text to put in the win message displayed when the goal row is reached
 var win_text_content = "Winrar!";
@@ -287,6 +297,15 @@ function is_empty(obj) {
     }
     // otherwise return true if no properties
     return true;
+}
+
+function is_touch_device() {
+  /*
+  Detects touch screen device.
+  Args: na
+  return: Boolean
+  */
+  return 'ontouchstart' in window || navigator.maxTouchPoints;
 }
 
 // ============================
