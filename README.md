@@ -1,3 +1,4 @@
+![Swim Free or Die Hard Logo](https://github.com/sunnymui/frontend-nanodegree-arcade-game/raw/master/images/title-hq.png)
 Swim Free or Die Hard
 ===============================
 
@@ -86,12 +87,12 @@ The rarest item, the key whisks you away to the water for an instant win and giv
 
 ## Credits
 
-Art assets from [itch.io](https://itch.io/game-assets/free)
+* Art assets from [itch.io](https://itch.io/game-assets/free)
 
-Sound and art assets from [OpenGameArt.org](https://opengameart.org/)
+* Sound and art assets from [OpenGameArt.org](https://opengameart.org/)
 
-SoundJS plugin from [CreateJS](http://www.createjs.com/soundjs)
+* SoundJS plugin from [CreateJS](http://www.createjs.com/soundjs)
 
-Sprite mini-plugin from [JLongster](http://jlongster.com/Making-Sprite-based-Games-with-Canvas)
+* Sprite mini-plugin from [JLongster](http://jlongster.com/Making-Sprite-based-Games-with-Canvas)
 
-Online sprite image editor and spritemap generation from [Piskel](http://www.piskelapp.com/)
+* Online sprite image editor and spritemap generation from [Piskel](http://www.piskelapp.com/)
