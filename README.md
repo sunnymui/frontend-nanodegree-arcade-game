@@ -1,6 +1,37 @@
-frontend-nanodegree-arcade-game
+Swim Free or Die Hard
 ===============================
 
-Students should use this [rubric](https://review.udacity.com/#!/projects/2696458597/rubric) for self-checking their submission. Make sure the functions you write are **object-oriented** - either class functions (like Player and Enemy) or class prototype functions such as Enemy.prototype.checkCollisions, and that the keyword 'this' is used appropriately within your class and class prototype functions to refer to the object the function is called upon. Also be sure that the **readme.md** file is updated with your instructions on both how to 1. Run and 2. Play your arcade game.
+An online frogger style game featuring several kinds of enemies, pickups, scoring, and more!
 
-For detailed instructions on how to get started, check out this [guide](https://docs.google.com/document/d/1v01aScPjSWCCWQLIpFqvg3-vXLH2e8_SZQKC8jNO0Dc/pub?embedded=true).
+## Play the Game
+
+Play right now by clicking over to the hosted version.
+### [Play Now](https://sunnymui.github.io/frontend-nanodegree-arcade-game/)
+
+Or clone the repo and open index.html on a local server. Local server is required to run locally due to cross origin request restrictions. If you want what I used and have node.js installed, [try downloading http-server.](https://www.npmjs.com/package/http-server)
+
+## How to Play
+
+It's a hot day and your character is looking for a nice dip in the river. First, select a difficulty level. The goal of the game is to guide your player character from the bottom of the screen to the top of the screen, where the water is. 
+
+Enemies will be blocking you way as you try to cross. Be careful and avoid getting hit, otherwise you'll lose your life and have to start over! Watch out for different enemy types--each has different characteristics.
+
+Different pickups will be randomly placed on tiles. Every pickup increases your score by a varying amount and some will have additional effects as well.
+
+Try to get a high score, then try to beat it on your next playthrough! Good luck!
+
+## Controls
+
+*Movement:* 
+Arrow Keys
+←↑↓→
+
+*Continue/Select:*
+Enter
+
+*Pause:*
+P
+
+*Mute:*
+M
+
