@@ -10,6 +10,20 @@ Play right now by clicking over to the hosted version:
 
 Or clone the repo and open index.html on a local server. Local server is required to run locally due to cross origin request restrictions. If you want what I used and have node.js installed, [try downloading http-server.](https://www.npmjs.com/package/http-server)
 
+Follow the instructions to install http-server, which should be just entering the following in a command prompt, as long as Node Package Manager (NPM) is installed:
+
+'npm install http-server -g'
+
+Afterwards, in the command prompt, start http-server with:
+
+'http-server [path]'
+
+Where [path] should be the directory path to wherever you put the game files. Once that's running (don't close the command prompt!) switch over to a web browser and enter the following in the address bar:
+
+'http://localhost:8080'
+
+You should be taken to the game and you can start SWIMMING FREE OR DYING HARD.
+
 ## How to Play
 
 It's a hot day and your character is looking for a nice dip in the river. First, select a difficulty level, then get familiar with the controls. The goal of the game is to guide your player character from the bottom of the screen to the top of the screen, where the water is.
