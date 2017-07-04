@@ -12,15 +12,15 @@ Or clone the repo and open index.html on a local server. Local server is require
 
 Follow the instructions to install http-server, which should be just entering the following in a command prompt, as long as Node Package Manager (NPM) is installed:
 
-'npm install http-server -g'
+`npm install http-server -g`
 
 Afterwards, in the command prompt, start http-server with:
 
-'http-server [path]'
+`http-server [path]``
 
-Where [path] should be the directory path to wherever you put the game files. Once that's running (don't close the command prompt!) switch over to a web browser and enter the following in the address bar:
+Where `[path]` should be the directory path to wherever you put the game files. Once that's running (don't close the command prompt!) switch over to a web browser and enter the following in the address bar:
 
-'http://localhost:8080'
+`http://localhost:8080`
 
 You should be taken to the game and you can start SWIMMING FREE OR DYING HARD.
 
