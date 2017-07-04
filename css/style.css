@@ -71,6 +71,15 @@ table{
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
+main {
+  position: relative;
+}
+
 h1, h2, h3, h4, h5, h6 {
   display: block;
   font-weight: bold;
@@ -104,7 +113,8 @@ body {
     /* take the full size of the window so things get centered in window */
     display: flex;
     width: 100%;
-    height: 100vh;
+    /* lets the centering only happen if the screen is big enough */
+    min-height: 100%;
     /* Center children vertically and horizontally*/
     align-items: center;
     justify-content: center;
@@ -194,10 +204,11 @@ canvas {
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: 1;
 }
 
 .popup_overlay div {
-    max-width: 16em;
+    max-width: 19em;
     padding: 1.5em;
     opacity: 0;
     text-shadow: 2px 2px #000;
@@ -253,24 +264,32 @@ canvas {
   width: 100%;
   font-family: sans-serif;
   color: #fff;
+  position: relative;
+  z-index: 100;
 }
 
 .toggle_keyboard {
   display: block;
-  margin: 0 auto 1em auto;
+  margin: 1em auto;
 }
 
 .arrows,
 .inputs {
   width: 100%;
-  display: none;
-  transition: 0.8s all;
+  /* no height and overflow hidden so it doesn't occupy space */
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: 0;
+  transition: 0.3s all;
 }
 
-.arrows .on,
-.inputs .on {
-  display: flex;
-} 
+.arrows.on,
+.inputs.on {
+  height: auto;
+  opacity: 1;
+  visibility: visible;
+}
 
 .arrows li {
   font-size: 48px;
@@ -284,6 +303,7 @@ canvas {
 .arrows .left,
 .arrows .right,
 .arrows .down {
+  /* Only color the actual keys */
   background: #00A388;
 }
 
@@ -296,11 +316,6 @@ canvas {
   margin: 5% auto;
   padding: 0.7em 0;
   text-transform: uppercase;
-}
-
-.inputs .m,
-.inputs .p,
-.inputs .enter {
   background: #6998a7;
 }
 
@@ -311,11 +326,13 @@ canvas {
   and (max-device-width: 1024px)
   and (orientation: portrait)
   and (-webkit-min-device-pixel-ratio: 1) {
-    .arrows,
-    .inputs {
-      display: flex;
+    .arrows.start-on,
+    .inputs.start-on{
+      height: auto;
+      opacity: 1;
+      visibility: visible;
     }
-    .popup_overlay {
-      bottom: 33%;
+    .popup_overlay.start-on {
+      bottom: 45%;
     }
 }

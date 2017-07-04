@@ -62,12 +62,23 @@ var Engine = (function(global) {
     main_container.appendChild(canvas);
 
     // message popup overlay box creation
+
     create_message_popup_overlay();
+
+    // create the onscreen controller keyboard
 
     // create onscreen mobile keyboard control container
     var onscreen_controls = create_on_screen_controls();
+    // make onscreen controls div accessible globally
+    global.onscreen_controls = onscreen_controls;
     // append onscreen controls to the main container
     main_container.appendChild(onscreen_controls);
+    // get the toggle button div
+    var toggle_button = doc.getElementsByClassName(toggle_key_class)[0];
+
+    // add click handler to controls
+    // check which child is the click target with handle key click function
+    onscreen_controls.addEventListener('click', handle_key_click, false);
 
     /* This function serves as the kickoff point for the game loop itself
      * and handles properly calling the update and render methods.
@@ -129,7 +140,9 @@ var Engine = (function(global) {
       player.lives = difficulty[current_difficulty].lives;
       // loop through lives sprites to match player lives
       for (i = 0; i < player.max_lives; i+=1) {
-        // only change sprites greater than the current player lives
+        // reset all lives sprites back to full before making changes
+        ui.lives[i].sprite.pos = [0, 0];
+        // only change to empty sprites for greater than the current player lives
         if (i > player.lives - 1) {
           // set to empty heart
           ui.lives[i].sprite.pos = [tile_width, 0];
@@ -467,7 +480,7 @@ var Engine = (function(global) {
       // create message box overlay container div
       var box_overlay = doc.createElement('div');
       // set container div class to win_overlay as default
-      box_overlay.className = popup_overlay_class;
+      box_overlay.className = popup_overlay_class + ' ' + mobile_show_key_class;
       // create container for the popup content
       var box_container = doc.createElement('div');
       // set box container class to win content as default
@@ -590,8 +603,8 @@ var Engine = (function(global) {
 
       // assign respective classes to container and ul's
       keyboard.className = keyboard_class;
-      arrows.className = arrows_class + ' ' + flex_wrap_class;
-      inputs.className = inputs_class + ' ' + flex_wrap_class;
+      arrows.className = arrows_class + ' ' + mobile_show_key_class +' ' + flex_wrap_class;
+      inputs.className = inputs_class + ' ' + mobile_show_key_class +' ' + flex_wrap_class;
 
       // append 9 list item elements to the arrow keys ul
       for (i=0; i < 9; i+=1) {

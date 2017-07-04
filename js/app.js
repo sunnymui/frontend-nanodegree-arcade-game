@@ -88,9 +88,10 @@ var player_boundary_top = -31;
 // the little undeground part on the bottom row
 var player_boundary_bottom = tile_height * (rows-1) - bottom_underground;
 
-// GAME UI AND MESSAGES
+// START SCREEN
 
 // start screen ui and text
+var selector;
 // tracker for selector animation and moved distance so far
 var selector_moved_distance = 0;
 // flag for if the selector is currently in motion
@@ -103,9 +104,23 @@ var start_element_top_y_pos = 200;
 var title_width = 550;
 var title_height = 250;
 
-// text for various elements
+// text for start various elements
 var start_game_text = 'Press ENTER to Start Game';
 var select_difficulty_text = 'Select Difficulty with ARROW Keys';
+
+// difficulty selection elements x position
+var difficulty_x_pos = 0;
+// padding betweeen each element
+var difficulty_x_padding = 141;
+// left side of the difficulty selection
+var difficulty_x_min_border = difficulty_x_padding-tile_width/2;
+// right side of the difficulty selection
+var difficulty_x_max_border = (difficulty_x_padding*4)-tile_width/2;
+// height of the pro tips sprite image
+var demo_width = 500;
+var demo_height = 175;
+
+// GAME UI AND MESSAGES
 
 // game ui
 var popup_overlay_class = 'popup_overlay';
@@ -120,6 +135,7 @@ var game_key_instructions = 'Movement: Arrow Keys ←↑↓→  -  Pause: P  -  
 var keyboard_class = 'keyboard';
 var arrows_class = 'arrows';
 var inputs_class = 'inputs';
+var mobile_show_key_class = 'start-on';
 var flex_wrap_class = 'flex-wrap';
 var flex_center_class = 'flex-center';
 var up_key_class = 'up';
@@ -311,6 +327,172 @@ function is_touch_device() {
 // ============================
 // Entity Generation Functions
 // ============================
+
+function generate_start() {
+/*
+Constructs all the start screen entitites.
+Args: na
+Return: array of start screen object instances
+*/
+  var start_screen_elements = [];
+
+  // instantiate the selector with a var for use in movement
+  selector = new Entity({
+                    // create the sprite for the selector graphic
+                    sprite: new Sprite('images/Selector.png',
+                                       [0,0],
+                                       // size settings array
+                                       [tile_width,
+                                        full_img_tile_height]),
+                    position: {
+                      // position selector at normal difficulty aka 2nd item
+                      x: (difficulty_x_padding * 2) - tile_width/2,
+                      y: start_element_top_y_pos+10
+                    }
+                  });
+
+  // push selector element to start screen array
+  start_screen_elements.push(selector);
+
+  // generate the difficulty label elements
+  for (i = 0; i < difficulty.length; i += 1) {
+    // horizontal space in between difficulty elements
+    difficulty_x_pos += difficulty_x_padding;
+
+    // push difficulty labels to start screen array
+    start_screen_elements.push(
+      new Entity({
+          position: {
+            x: difficulty_x_pos,
+            y: start_element_top_y_pos+210
+          },
+          text: difficulty[i].label,
+          text_align: 'center',
+          font: 'bold 24px Arial',
+          font_color: '#fff'
+      })
+    );
+
+    // push difficulty characters to start screen array
+    start_screen_elements.push(
+      new Entity({
+          // create the sprite for the character graphic
+          sprite: new Sprite(difficulty[i].sprite,
+                             [0,0],
+                             // size settings array
+                             [tile_width,
+                              full_img_tile_height]),
+          position: {
+            x: difficulty_x_pos - tile_width/2,
+            y: start_element_top_y_pos + 10
+          }
+      })
+    );
+  }
+
+  start_screen_elements.push(
+    new Entity({
+      // create the sprite for the title graphic
+      sprite: new Sprite('images/title.png',
+                         // starting point in the sprite sheet
+                         [0,0],
+                         // size settings array
+                         [title_width,
+                          title_height],
+                          // speed
+                          6,
+                          // frames array
+                          range(0,18),
+                          // direction of frames
+                          'horizontal',
+                          // play once
+                          true,
+                          // final frame
+                          18),
+      position: {
+        // center the title
+        x: canvas_width/2 - title_width/2,
+        // move it above the top
+        y: start_element_top_y_pos-230
+      }
+    })
+  );
+
+  // difficulty selection instruction text
+  start_screen_elements.push(
+    new Entity({
+          position: {
+            x: canvas_width/2,
+            y: start_element_top_y_pos+40
+          },
+          text: select_difficulty_text,
+          text_align: 'center',
+          font: '20px Arial',
+          font_color: '#fff',
+          stroke_text: true,
+          stroke_color: '#000'
+    })
+  );
+
+  // start game instruction text
+  start_screen_elements.push(
+    new Entity({
+      position: {
+        x: canvas_width/2,
+        y: start_element_top_y_pos+260
+      },
+      text: start_game_text,
+      text_align: 'center',
+      font: '20px Arial',
+      font_color: '#fff',
+      stroke_text: true,
+      stroke_color: '#000',
+      blink: true
+    })
+  );
+
+  // instantiate the demo brotips area
+  start_screen_elements.push(
+    new Entity({
+      // create the sprite for the brotips graphic
+      sprite: new Sprite('images/brotips.png',
+                         // starting point in the sprite sheet
+                         [0,0],
+                         // size settings array
+                         [demo_width,
+                          demo_height],
+                          // speed
+                          20,
+                          // frames array
+                          range(0,81),
+                          // direction of frames
+                          'vertical'),
+      position: {
+        x: canvas_width/2-demo_width/2,
+        y: start_element_top_y_pos+280
+      }
+    })
+  );
+
+  // create controls text instructions
+
+  start_screen_elements.push(
+    new Entity({
+      position: {
+        // position them spaced apart in a row
+        x: canvas_width/2,
+        // bottom of the canvas
+        y: canvas_height - 5
+      },
+      text: game_key_instructions,
+      font: '18px Arial',
+      font_color: '#444',
+      text_align: 'center'
+    })
+  );
+
+  return start_screen_elements;
+}
 
 // putting the enemy construction loop in a function for ease of resetting the level
 function generate_enemies() {
@@ -554,7 +736,7 @@ function generate_ui() {
     font_color: 'rgba(131, 131, 131, 0.54)'
   });
 
-  // create controls text instructions
+  // create controls footer text instructions
 
   ui_elements.instructions = new Entity({
       position: {
@@ -817,6 +999,92 @@ function toggle_message(settings) {
 
 }
 
+// On screen keyboard controls
+
+function toggle_controls() {
+  /*
+  Toggles visibility of keyboard controls and adjusts popup overlay positioning.
+  Args: na
+  Return: na
+  */
+  // the class to toggle visibility
+  var on_class = 'on';
+  // get the arrows and inputs divs
+  var arrows = onscreen_controls.childNodes[1];
+  var inputs = onscreen_controls.childNodes[2];
+  // get the popup overlay
+  var popup_overlay = document.getElementsByClassName(popup_overlay_class)[0];
+
+  // toggle the popup overlay mobile position adjustment class
+  popup_overlay.classList.toggle(mobile_show_key_class);
+
+  // if the controls started as visible because a mobile resolution detected
+  if (arrows.classList.contains(mobile_show_key_class) || inputs.classList.contains(mobile_show_key_class)){
+    // remove the starting show class from the class of each div
+    arrows.classList.remove(mobile_show_key_class);
+    inputs.classList.remove(mobile_show_key_class);
+
+    // exit early
+    return;
+  }
+
+  // toggle the on class for the arrows and input divs
+  arrows.classList.toggle(on_class);
+  inputs.classList.toggle(on_class);
+}
+
+function handle_key_click(e) {
+/*
+Handles clicks on the onscreen control keyboard elements.
+Args: e (obj) - the trigger event
+Return: na
+*/
+  // get the element that received the click
+  var clicked = e.target;
+  // prevent default for anchors if clicked
+  e.preventDefault();
+
+  // make sure the target isn't the containing div, but a child instead
+  if(clicked !== e.currentTarget) {
+    // return early if clicking on a classless element
+    if (clicked.classList.length === 0) {
+      return;
+    }
+    // check the first class for the target to trigger the right key event
+    switch (clicked.classList[0]) {
+      // toggle show/hide for the keyboard div with the anchor
+      case 'toggle_keyboard':
+        toggle_controls();
+        // unfocus the toggle button so subsequent enter keys dont retrigger it
+        clicked.blur();
+        break;
+      case 'up':
+        triggerKeyboardEvent(clicked, 38);
+        break;
+      case 'left':
+        triggerKeyboardEvent(clicked, 37);
+        break;
+      case 'right':
+        triggerKeyboardEvent(clicked, 39);
+        break;
+      case 'down':
+        triggerKeyboardEvent(clicked, 40);
+        break;
+      case 'enter':
+        triggerKeyboardEvent(clicked, 13);
+        break;
+      case 'm':
+        triggerKeyboardEvent(clicked, 77);
+        break;
+      case 'p':
+        triggerKeyboardEvent(clicked, 80);
+        break;
+    }
+  }
+  // stop the event from bubbling up to the containing div
+  e.stopPropagation();
+}
+
 // TRANSITIONS
 
 function fade_out_rebuild_fade_in(back_to_start) {
@@ -1001,6 +1269,28 @@ function pause_toggle() {
   toggle_message({container_class: secondary_popup_class,
                   no_subtext: false,
                   secondary: true});
+}
+
+function triggerKeyboardEvent(el, keyCode)
+/*
+Plugin function to simulate a keyup event in javascript.
+Source: http://jsbin.com/awenaq/3/edit?html,js,output
+Args: el (obj) - element target that assigned as triggering the event,
+      keyCode (int) - keycode number to trigger in the event
+Return: na
+*/
+{
+    var eventObj = document.createEventObject ?
+        document.createEventObject() : document.createEvent("Events");
+
+    if(eventObj.initEvent){
+      eventObj.initEvent("keyup", true, true);
+    }
+
+    eventObj.keyCode = keyCode;
+    eventObj.which = keyCode;
+
+    el.dispatchEvent ? el.dispatchEvent(eventObj) : el.fireEvent("onkeydup", eventObj);
 }
 
 /////////////////////////
@@ -2064,7 +2354,7 @@ var allEnemies;
 //////////////////////////
 
 // array to store all the pickup instances actual INSTANTIATION is on demand
-// via rebuild world when moving froms start screen
+// via rebuild world when moving froms start screen so no need to do it here
 var pickups;
 
 /////////////////////////
@@ -2077,154 +2367,7 @@ var ui = generate_ui();
 // START INSTANTATION  //
 /////////////////////////
 
-// array to store all the start screen elements
-var start_screen_elements = [];
-// difficulty elements x position
-var difficulty_x_pos = 0;
-var difficulty_x_padding = 141;
-var difficulty_x_min_border = difficulty_x_padding-tile_width/2;
-var difficulty_x_max_border = (difficulty_x_padding*4)-tile_width/2;
-// height of the tips sprite image
-var demo_width = 500;
-var demo_height = 175;
-
-// instantiate the selector with a var for use in movement
-var selector =  new Entity({
-                  // create the sprite for the selector graphic
-                  sprite: new Sprite('images/Selector.png',
-                                     [0,0],
-                                     // size settings array
-                                     [tile_width,
-                                      full_img_tile_height]),
-                  position: {
-                    // position selector at normal difficulty aka 2nd item
-                    x: (difficulty_x_padding * 2) - tile_width/2,
-                    y: start_element_top_y_pos+10
-                  }
-                });
-
-// push selector element to start screen array
-start_screen_elements.push(selector);
-
-// generate the difficulty label elements
-for (i = 0; i < difficulty.length; i += 1) {
-  // horizontal space in between difficulty elements
-  difficulty_x_pos += difficulty_x_padding;
-
-  // push difficulty labels to start screen array
-  start_screen_elements.push(
-    new Entity({
-        position: {
-          x: difficulty_x_pos,
-          y: start_element_top_y_pos+210
-        },
-        text: difficulty[i].label,
-        text_align: 'center',
-        font: 'bold 24px Arial',
-        font_color: '#fff'
-    })
-  );
-
-  // push difficulty characters to start screen array
-  start_screen_elements.push(
-    new Entity({
-        // create the sprite for the character graphic
-        sprite: new Sprite(difficulty[i].sprite,
-                           [0,0],
-                           // size settings array
-                           [tile_width,
-                            full_img_tile_height]),
-        position: {
-          x: difficulty_x_pos - tile_width/2,
-          y: start_element_top_y_pos + 10
-        }
-    })
-  );
-}
-
-start_screen_elements.push(
-  new Entity({
-    // create the sprite for the title graphic
-    sprite: new Sprite('images/title.png',
-                       // starting point in the sprite sheet
-                       [0,0],
-                       // size settings array
-                       [title_width,
-                        title_height],
-                        // speed
-                        6,
-                        // frames array
-                        range(0,18),
-                        // direction of frames
-                        'horizontal',
-                        // play once
-                        true,
-                        // final frame
-                        18),
-    position: {
-      // center the title
-      x: canvas_width/2 - title_width/2,
-      // move it above the top
-      y: start_element_top_y_pos-230
-    }
-  })
-);
-
-// difficulty selection instruction text
-start_screen_elements.push(
-  new Entity({
-        position: {
-          x: canvas_width/2,
-          y: start_element_top_y_pos+40
-        },
-        text: select_difficulty_text,
-        text_align: 'center',
-        font: '20px Arial',
-        font_color: '#fff',
-        stroke_text: true,
-        stroke_color: '#000'
-  })
-);
-
-// start game instruction text
-start_screen_elements.push(
-  new Entity({
-    position: {
-      x: canvas_width/2,
-      y: start_element_top_y_pos+260
-    },
-    text: start_game_text,
-    text_align: 'center',
-    font: '20px Arial',
-    font_color: '#fff',
-    stroke_text: true,
-    stroke_color: '#000',
-    blink: true
-  })
-);
-
-// instantiate the demo brotips area
-start_screen_elements.push(
-  new Entity({
-    // create the sprite for the brotips graphic
-    sprite: new Sprite('images/brotips.png',
-                       // starting point in the sprite sheet
-                       [0,0],
-                       // size settings array
-                       [demo_width,
-                        demo_height],
-                        // speed
-                        20,
-                        // frames array
-                        range(0,81),
-                        // direction of frames
-                        'vertical'),
-    position: {
-      x: canvas_width/2-demo_width/2,
-      y: start_element_top_y_pos+280
-    }
-  })
-);
+var start_screen_elements = generate_start();
 
 //////////////
 //  SOUNDS  //
@@ -2240,7 +2383,7 @@ preloaded_sounds_length = preloaded_sounds.length;
 //////////////
 
 // This listens for key presses and sends the keys to your
-// Player.handleInput() method. You don't need to modify this.
+// Player.handleInput() method.
 document.addEventListener('keyup', function(e) {
     // keyboard event keycodes for various game CONTROLS
     var p_key = 80;
@@ -2255,7 +2398,7 @@ document.addEventListener('keyup', function(e) {
 
     // m for mute audio
     if (e.keyCode === m_key) {
-      // toggle the boolean
+      // toggle the boolean to mute
       createjs.Sound.muted = !createjs.Sound.muted;
     }
 
@@ -2273,6 +2416,7 @@ document.addEventListener('keyup', function(e) {
 
       // only trigger transition during the game over or goal reached phase
       if (player.goal_reached || player.game_over) {
+
         // turn flag for animation being run on
         animation_running = true;
         // initiate crossfade animation
@@ -2341,6 +2485,7 @@ document.addEventListener('keyup', function(e) {
     }
 
 });
+
 
 // check if user tabs away from the window
 document.addEventListener('visibilitychange', function() {
