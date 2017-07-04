@@ -6,7 +6,7 @@ An online frogger style game featuring several kinds of enemies, pickups, scorin
 ## Play the Game
 
 Play right now by clicking over to the hosted version:
-### [Play Now](https://sunnymui.github.io/frontend-nanodegree-arcade-game/)
+### [PLAY NOW ►](https://sunnymui.github.io/frontend-nanodegree-arcade-game/)
 
 Or clone the repo and open index.html on a local server. Local server is required to run locally due to cross origin request restrictions. If you want what I used and have node.js installed, [try downloading http-server.](https://www.npmjs.com/package/http-server)
 
@@ -16,7 +16,7 @@ Follow the instructions to install http-server, which should be just entering th
 
 Afterwards, in the command prompt, start http-server with:
 
-`http-server [path]``
+`http-server [path]`
 
 Where `[path]` should be the directory path to wherever you put the game files. Once that's running (don't close the command prompt!) switch over to a web browser and enter the following in the address bar:
 
