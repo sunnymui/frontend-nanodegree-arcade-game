@@ -1,5 +1,4 @@
 ![Swim Free or Die Hard Logo](https://github.com/sunnymui/frontend-nanodegree-arcade-game/raw/master/images/title-hq.png)
-Swim Free or Die Hard
 ===============================
 
 An online frogger style game featuring several kinds of enemies, pickups, scoring, adjustable difficulty, and more!
